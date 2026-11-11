@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Exofo - Sign in to your Company Management System</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='24' fill='%23192f8a'/><text x='50' y='65' font-size='48' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>E</text></svg>">
+
+  <!-- Google Font: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- Background decorative ambient circles for desktop -->
+  <div class="ambient-glow glow-1" aria-hidden="true"></div>
+  <div class="ambient-glow glow-2" aria-hidden="true"></div>
+  <div class="ambient-glow glow-3" aria-hidden="true"></div>
+
+  <!-- Device Frame Toggle (visible only on desktop to preview exact mobile mock) -->
+  <div class="preview-mode-bar" id="previewModeBar">
+    <span class="preview-label">Preview Mode:</span>
+    <button type="button" class="mode-btn active" id="btnFullView" title="Responsive Desktop / Split View">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      <span>Responsive</span>
+    </button>
+    <button type="button" class="mode-btn" id="btnPhoneView" title="Exact Mobile Phone Preview">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      <span>Mobile Frame</span>
+    </button>
+  </div>
+
+  <!-- Main Viewport Container -->
+  <main class="page-container" id="pageContainer">
+
+    <!-- Left / Top Visual Showcase Section -->
+    <section class="visual-showcase" aria-label="Product Showcase">
+      <div class="visual-backdrop"></div>
+      
+      <div class="illustration-wrapper">
+        <img 
+          src="assets/illustration.jpg" 
+          alt="Dashboard Management Illustration" 
+          class="illustration-img"
+          draggable="false"
+        >
+      </div>
+
+      <!-- Desktop-only branding features -->
+      <div class="showcase-content">
+        <div class="showcase-badge">
+          <span class="badge-dot"></span>
+          <span>Enterprise Management Platform</span>
+        </div>
+        <h2 class="showcase-title">Empower your team with intelligent insights.</h2>
+        <p class="showcase-desc">Real-time performance tracking, project analytics, and unified collaboration in one seamless system.</p>
+        
+        <div class="showcase-metrics">
+          <div class="metric-item">
+            <span class="metric-val">99.9%</span>
+            <span class="metric-lbl">Uptime SLA</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric-item">
+            <span class="metric-val">2.4x</span>
+            <span class="metric-lbl">Productivity</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric-item">
+            <span class="metric-val">SOC-2</span>
+            <span class="metric-lbl">Certified</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right / Bottom Form Card Section (The 1:1 Sheet from design) -->
+    <section class="login-card-section" aria-label="Login Form">
+      <div class="login-card" id="loginCard">
+
+        <!-- Mobile Sheet Handle Pill -->
+        <div class="sheet-handle-pill" aria-hidden="true"></div>
+
+        <!-- Header -->
+        <header class="card-header">
+          <h1 class="brand-title">Exofo</h1>
+          <p class="brand-subtitle">Sign in to your Company Management System</p>
+        </header>
+
+        <!-- Login Form -->
+        <form class="login-form" id="loginForm" novalidate autocomplete="on">
+
+          <!-- Login ID Input Group -->
+          <div class="form-group" id="groupLoginId">
+            <label for="loginId" class="sr-only">Login ID</label>
+            <div class="input-wrapper">
+              <span class="input-icon left-icon" aria-hidden="true">
+                <!-- User Outline Icon -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </span>
+              <input 
+                type="text" 
+                id="loginId" 
+                name="loginId" 
+                class="form-input" 
+                placeholder="Enter your login ID" 
+                autocomplete="username" 
+                required
+              >
+            </div>
+            <span class="field-error" id="errorLoginId" role="alert"></span>
+          </div>
+
+          <!-- Password Input Group -->
+          <div class="form-group" id="groupPassword">
+            <label for="password" class="sr-only">Password</label>
+            <div class="input-wrapper">
+              <span class="input-icon left-icon" aria-hidden="true">
+                <!-- Lock Outline Icon -->
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </span>
+              <input 
+                type="password" 
+                id="password" 
+                name="password" 
+                class="form-input" 
+                placeholder="Enter your password" 
+                autocomplete="current-password" 
+                required
+              >
+              <!-- Eye Toggle Button -->
+              <button 
+                type="button" 
+                class="input-icon right-icon toggle-password" 
+                id="togglePasswordBtn" 
+                aria-label="Show password"
+                title="Show password"
+              >
+                <!-- Eye Icon (visible by default) -->
+                <svg class="eye-open-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12s3.5-6.5 10-6.5 10 6.5 10 6.5-3.5 6.5-10 6.5-10-6.5-10-6.5z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <!-- Eye Off Icon (hidden by default) -->
+                <svg class="eye-closed-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display: none;">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            </div>
+            <span class="field-error" id="errorPassword" role="alert"></span>
+          </div>
+
+          <!-- Options Row: Remember Me & Forgot Password -->
+          <div class="form-options">
+            <label class="custom-checkbox-label">
+              <input type="checkbox" id="rememberMe" name="rememberMe" checked class="checkbox-input">
+              <span class="custom-checkbox" aria-hidden="true">
+                <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+                  <path d="M1 5L4.5 8.5L11 1.5" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="checkbox-text">Remember me</span>
+            </label>
+
+            <a href="#forgot-password" class="forgot-password-link" id="forgotPasswordLink">
+              Forgot password?
+            </a>
+          </div>
+
+          <!-- Action Button: Login -->
+          <button type="submit" class="login-button" id="loginButton">
+            <span class="btn-text">Login</span>
+            <span class="btn-spinner" aria-hidden="true"></span>
+          </button>
+
+        </form>
+
+        <!-- Subtle security badge / footer -->
+        <footer class="card-footer">
+          <p class="footer-hint">Protected by enterprise-grade 256-bit SSL encryption</p>
+        </footer>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Notification Toast Container -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- Script -->
+  <script src="js/script.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --primary-blue: #1261E8;
+    --deep-blue: #0645B5;
+    --light-blue: #DCEBFF;
+    --bg-ice: #F5F8FF;
+    --text-primary: #111827;
+    --text-secondary: #64748B;
+  }
+
+  body {
+    background-color: #F5F8FF;
+    color: #111827;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Glassmorphism Classes */
+.glass-surface {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 8px 30px rgba(18, 97, 232, 0.06), 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.glass-folder-tab {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-bottom: none;
+  box-shadow: 0 -4px 18px rgba(18, 97, 232, 0.06);
+}
+
+.glass-folder-tab:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.95);
+}
+
+.glass-blue-project {
+  background: linear-gradient(135deg, #0b58e7 0%, #0641b0 60%, #052e85 100%);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 
+    0 16px 36px -6px rgba(18, 97, 232, 0.48), 
+    0 4px 14px -2px rgba(6, 69, 181, 0.35),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+/* Internal wave curves for main project card */
+.glass-blue-project::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  right: -10%;
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(62, 148, 255, 0.35) 0%, rgba(18, 97, 232, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.glass-blue-project::after {
+  content: '';
+  position: absolute;
+  bottom: -35%;
+  left: 10%;
+  width: 320px;
+  height: 220px;
+  background: radial-gradient(ellipse, rgba(29, 78, 216, 0.5) 0%, rgba(6, 69, 181, 0) 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Translucent pill badge on blue card */
+.glass-blue-pill {
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.glass-blue-pill:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* Stat card subtle hover effect */
+.stat-card-hover {
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.stat-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(18, 97, 232, 0.1), 0 2px 4px rgba(0, 0, 0, 0.02);
+  border-color: rgba(255, 255, 255, 0.95);
+}
+
+/* Hide scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
