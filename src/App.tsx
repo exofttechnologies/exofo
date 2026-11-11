@@ -44,8 +44,9 @@ import { ProfilePage } from './pages/ProfilePage';
 import { EditProfilePage } from './pages/profile/EditProfilePage';
 import { ChangePasswordPage } from './pages/profile/ChangePasswordPage';
 
-// Employee Module Home Page
+// Employee Module Pages
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
+import { EmployeeTasksPage } from './pages/employee/EmployeeTasksPage';
 
 /**
  * ProtectedRoute Component
@@ -156,7 +157,7 @@ export const App: React.FC = () => {
             } 
           />
           <Route path="/employee/projects" element={<Navigate to="/projects" replace />} />
-          <Route path="/employee/tasks" element={<Navigate to="/tasks" replace />} />
+          <Route path="/employee/tasks" element={<ProtectedRoute><EmployeeTasksPage /></ProtectedRoute>} />
           <Route path="/employee/profile" element={<Navigate to="/profile" replace />} />
 
           {/* Fallback routes */}

@@ -18,9 +18,12 @@ import {
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
 
+  // Role Tab: 'employee' or 'admin'
+  const [roleTab, setRoleTab] = useState<'employee' | 'admin'>('employee');
+
   // Form State
-  const [loginId, setLoginId] = useState('admin@exofo.internal');
-  const [password, setPassword] = useState('••••••••••••');
+  const [loginId, setLoginId] = useState('EMP009');
+  const [password, setPassword] = useState('Welcome123!');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,11 +33,23 @@ export const LoginPage: React.FC = () => {
   // Desktop view mode toggle (Responsive vs Phone Frame Preview)
   const [previewMode, setPreviewMode] = useState<'responsive' | 'phone'>('responsive');
 
+  const handleRoleTabChange = (role: 'employee' | 'admin') => {
+    setRoleTab(role);
+    setError(null);
+    if (role === 'employee') {
+      setLoginId('EMP009');
+      setPassword('Welcome123!');
+    } else {
+      setLoginId('admin@exofo.internal');
+      setPassword('admin123');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!loginId.trim()) {
-      setError('Please enter your login ID');
+      setError(roleTab === 'employee' ? 'Please enter your Employee ID' : 'Please enter your Admin Login ID');
       return;
     }
     if (!password) {
@@ -51,16 +66,19 @@ export const LoginPage: React.FC = () => {
       localStorage.setItem('exofo_auth', 'true');
       localStorage.setItem('exofo_user_email', trimmed);
 
-      const isEmployee = 
-        trimmed.includes('ahmed') || 
-        trimmed.includes('sarah') || 
-        trimmed.includes('alex') || 
-        trimmed.includes('ameen') || 
-        trimmed.includes('mohammed') || 
+      // Determine role: Explicit employee tab OR employee ID / name entered
+      const isEmployeeLogin =
+        roleTab === 'employee' ||
         trimmed.startsWith('emp') ||
+        trimmed.includes('ahmed') ||
+        trimmed.includes('sarah') ||
+        trimmed.includes('alex') ||
+        trimmed.includes('ameen') ||
+        trimmed.includes('mohammed') ||
+        trimmed.includes('david') ||
         (trimmed !== 'admin@exofo.internal' && trimmed !== 'admin');
 
-      if (isEmployee) {
+      if (isEmployeeLogin) {
         if (trimmed.includes('ahmed') || trimmed === 'emp009') {
           localStorage.setItem('exofo_employee_id', 'emp-ahmed');
         } else if (trimmed.includes('sarah') || trimmed === 'emp001') {
@@ -71,22 +89,25 @@ export const LoginPage: React.FC = () => {
           localStorage.setItem('exofo_employee_id', 'emp-ameen');
         } else if (trimmed.includes('mohammed') || trimmed === 'emp011') {
           localStorage.setItem('exofo_employee_id', 'emp-mohammed');
+        } else if (trimmed.includes('david') || trimmed === 'emp004') {
+          localStorage.setItem('exofo_employee_id', 'emp-4');
         } else {
+          // Default to Ahmed if generic employee ID entered
           localStorage.setItem('exofo_employee_id', 'emp-ahmed');
         }
       }
 
       setIsLoading(false);
-      const destination = isEmployee ? '/employee/dashboard' : '/';
+      const destination = isEmployeeLogin ? '/employee/dashboard' : '/';
       setSuccessToast(
-        isEmployee
+        isEmployeeLogin
           ? 'Signed in as Employee! Redirecting to Workspace...'
           : 'Signed in as Administrator! Redirecting to Dashboard...'
       );
       setTimeout(() => {
         navigate(destination);
-      }, 700);
-    }, 600);
+      }, 600);
+    }, 500);
   };
 
   return (
@@ -222,43 +243,30 @@ export const LoginPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Quick Demo Credentials Switcher */}
-            <div className="mb-5 p-2 rounded-2xl bg-slate-50 border border-slate-200/80">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1.5">
-                Quick 1-Click Demo Accounts
-              </p>
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginId('admin@exofo.internal');
-                    setPassword('admin123');
-                    setError(null);
-                  }}
-                  className={`px-2 py-1.5 rounded-xl text-[11px] font-bold border transition-all truncate text-center ${
-                    loginId === 'admin@exofo.internal'
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  Admin Portal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLoginId('ahmed.dev@exofo.internal');
-                    setPassword('Welcome123!');
-                    setError(null);
-                  }}
-                  className={`px-2 py-1.5 rounded-xl text-[11px] font-bold border transition-all truncate text-center ${
-                    loginId === 'ahmed.dev@exofo.internal'
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
-                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  Employee Portal (Ahmed)
-                </button>
-              </div>
+            {/* Role Switcher Pill Tabs: Employee vs Administrator */}
+            <div className="flex items-center p-1 rounded-2xl bg-slate-100 border border-slate-200/80 mb-5">
+              <button
+                type="button"
+                onClick={() => handleRoleTabChange('employee')}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${
+                  roleTab === 'employee'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Employee Portal</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRoleTabChange('admin')}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 ${
+                  roleTab === 'admin'
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Administrator</span>
+              </button>
             </div>
 
             {/* Error Message */}
@@ -273,7 +281,16 @@ export const LoginPage: React.FC = () => {
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Input 1: Login ID */}
               <div>
-                <label htmlFor="loginId" className="sr-only">Login ID</label>
+                <div className="flex items-center justify-between mb-1.5 px-1">
+                  <label htmlFor="loginId" className="text-xs font-bold text-slate-700">
+                    {roleTab === 'employee' ? 'Employee ID or Email' : 'Administrator Email'}
+                  </label>
+                  {roleTab === 'employee' && (
+                    <span className="text-[11px] font-semibold text-blue-600">
+                      e.g. EMP009 (Ahmed)
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
                     <User className="w-5 h-5 stroke-[1.8]" />
@@ -283,7 +300,11 @@ export const LoginPage: React.FC = () => {
                     type="text"
                     value={loginId}
                     onChange={(e) => setLoginId(e.target.value)}
-                    placeholder="Enter your login ID"
+                    placeholder={
+                      roleTab === 'employee'
+                        ? 'Enter your Employee ID (e.g. EMP009)'
+                        : 'Enter admin email (admin@exofo.internal)'
+                    }
                     required
                     className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-[#F4F6FC] border border-[#E6EBF5] text-xs sm:text-sm font-semibold text-[#0C102A] placeholder:text-[#78829A] focus:outline-none focus:bg-white focus:border-[#203CA3] focus:ring-4 focus:ring-blue-500/10 transition-all shadow-2xs"
                   />
