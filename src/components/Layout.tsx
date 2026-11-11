@@ -17,8 +17,8 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  // For /login route, render full-screen without dashboard frame
-  if (location.pathname === '/login') {
+  // For /login route and /employee module routes, render their dedicated layouts
+  if (location.pathname === '/login' || location.pathname.startsWith('/employee')) {
     return <>{children}</>;
   }
 

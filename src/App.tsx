@@ -44,6 +44,9 @@ import { ProfilePage } from './pages/ProfilePage';
 import { EditProfilePage } from './pages/profile/EditProfilePage';
 import { ChangePasswordPage } from './pages/profile/ChangePasswordPage';
 
+// Employee Module Home Page
+import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
+
 /**
  * ProtectedRoute Component
  * Requires valid exofo_auth flag in localStorage to access management dashboard.
@@ -141,6 +144,20 @@ export const App: React.FC = () => {
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/profile/edit" element={<ProtectedRoute><EditProfilePage /></ProtectedRoute>} />
           <Route path="/profile/change-password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
+
+          {/* 9. Employee Module Home Dashboard */}
+          <Route path="/employee" element={<Navigate to="/employee/dashboard" replace />} />
+          <Route 
+            path="/employee/dashboard" 
+            element={
+              <ProtectedRoute>
+                <EmployeeDashboardPage />
+              </ProtectedRoute>
+            } 
+          />
+          <Route path="/employee/projects" element={<Navigate to="/projects" replace />} />
+          <Route path="/employee/tasks" element={<Navigate to="/tasks" replace />} />
+          <Route path="/employee/profile" element={<Navigate to="/profile" replace />} />
 
           {/* Fallback routes */}
           <Route path="/team" element={<ProtectedRoute><EmployeeListingPage /></ProtectedRoute>} />

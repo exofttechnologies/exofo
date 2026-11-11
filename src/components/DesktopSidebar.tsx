@@ -7,7 +7,8 @@ import {
   Users, 
   BarChart3, 
   Settings, 
-  Bell 
+  Bell,
+  UserCheck 
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { currentUser } from '../data/mockData';
@@ -31,6 +32,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
   ];
 
   const secondaryNav = [
+    { label: 'Employee Workspace', icon: UserCheck, path: '/employee/dashboard' },
     { label: 'Employee Directory', icon: Users, path: '/employees' },
     { label: 'Project History', icon: FileText, path: '/project-history' },
     { label: 'Admin Profile', icon: Settings, path: '/profile' },

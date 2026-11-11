@@ -87,6 +87,79 @@ router.post('/', async (req, res) => {
 });
 
 /**
+ * GET /api/employees/:employeeId/dashboard
+ * Dynamic employee dashboard metrics, tasks, and profile
+ */
+router.get('/:employeeId/dashboard', async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const employee = await Employee.findOne({
+      $or: [{ employeeId: employeeId }, { _id: employeeId.match(/^[0-9a-fA-F]{24}$/) ? employeeId : null }],
+    });
+
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    // Find all tasks assigned to this employee
+    const assignedTasks = await Task.find({
+      $or: [
+        { assignedEmployee: employee._id },
+        { assignedEmployeeName: new RegExp(`^${employee.name}$`, 'i') },
+      ],
+    }).sort({ createdAt: -1 });
+
+    const myTasksCount = assignedTasks.length;
+    const inProgressCount = assignedTasks.filter((t) => t.status === 'In Progress').length;
+    const completedCount = assignedTasks.filter((t) => t.status === 'Completed').length;
+    const pendingCount = assignedTasks.filter((t) => t.status === 'Pending').length;
+
+    // Today's tasks (due today or active, up to 5)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const todayTasks = assignedTasks
+      .filter((t) => {
+        if (!t.dueDate) return true;
+        const d = new Date(t.dueDate);
+        return d <= tomorrow;
+      })
+      .slice(0, 5);
+
+    res.json({
+      success: true,
+      data: {
+        employee: {
+          id: employee._id,
+          employeeId: employee.employeeId,
+          name: employee.name,
+          email: employee.email,
+          phone: employee.phone,
+          designation: employee.designation,
+          department: employee.department,
+          avatar: employee.avatar || '',
+          accountStatus: employee.accountStatus,
+          unreadNotifications: 2,
+        },
+        counts: {
+          myTasks: myTasksCount,
+          myProjects: 2,
+          inProgress: inProgressCount,
+          completed: completedCount,
+          pending: pendingCount,
+        },
+        todayTasks,
+        assignedTasks,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
  * GET /api/employees/:employeeId
  */
 router.get('/:employeeId', async (req, res) => {
