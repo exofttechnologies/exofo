@@ -37,7 +37,7 @@ export const BottomNavigation: React.FC = () => {
   const handlePlusClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isProjectsPage) {
-      window.dispatchEvent(new CustomEvent('open-create-project-modal'));
+      navigate('/projects/create');
     } else if (isTasksPage) {
       navigate('/tasks/create');
     }

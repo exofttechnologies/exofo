@@ -141,15 +141,6 @@ export const ProjectSectionsPage: React.FC = () => {
       badge: `${project.assignedEmployees.length} Assigned`,
     },
     {
-      id: 'assign-employees',
-      title: 'Assign Employees',
-      description: 'Add or remove project employees.',
-      icon: UserPlus,
-      gradient: 'from-[#2563EB] to-[#1D4ED8]',
-      path: `/projects/${project.id}/assign-employees`,
-      badge: 'Manage Squad',
-    },
-    {
       id: 'phases',
       title: 'Project Phases',
       description: 'Manage project phases and progress.',

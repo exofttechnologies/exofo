@@ -91,7 +91,7 @@ export const EmployeeDropdown: React.FC<EmployeeDropdownProps> = ({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute z-30 mt-2 w-full rounded-2xl bg-white border border-slate-200/90 shadow-xl overflow-hidden animate-fade-in">
+        <div className="absolute z-50 mt-2 w-full rounded-2xl bg-white border border-slate-200/90 shadow-xl overflow-hidden animate-fade-in">
           {/* Search Box */}
           <div className="p-2.5 border-b border-slate-100 bg-slate-50/50">
             <div className="relative">

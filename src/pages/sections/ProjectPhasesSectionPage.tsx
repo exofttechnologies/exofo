@@ -7,8 +7,7 @@ import {
   Clock, 
   ArrowRight, 
   BarChart3, 
-  ListChecks, 
-  X 
+  ListChecks,
 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
@@ -21,11 +20,6 @@ export const ProjectPhasesSectionPage: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // New Phase Modal
-  const [isAddPhaseOpen, setIsAddPhaseOpen] = useState(false);
-  const [phaseName, setPhaseName] = useState('');
-  const [phaseDesc, setPhaseDesc] = useState('');
-
   useEffect(() => {
     async function load() {
       if (!projectId) return;
@@ -36,29 +30,6 @@ export const ProjectPhasesSectionPage: React.FC = () => {
     }
     load();
   }, [projectId]);
-
-  const handleCreatePhase = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!project || !phaseName.trim()) return;
-
-    const newPhase: ProjectPhase = {
-      id: `phase-${Date.now()}`,
-      name: phaseName.trim(),
-      description: phaseDesc.trim() || 'Phase description and deliverables.',
-      order: project.phases.length + 1,
-      completionPercentage: 0,
-      status: 'Not Started',
-      steps: [],
-    };
-
-    const updatedPhases = [...project.phases, newPhase];
-    await projectService.updateProject(project.id, { phases: updatedPhases });
-    setProject({ ...project, phases: updatedPhases });
-
-    setPhaseName('');
-    setPhaseDesc('');
-    setIsAddPhaseOpen(false);
-  };
 
   if (loading) return <div className="p-8 text-center text-slate-500 font-semibold">Loading project phases...</div>;
   if (!project) return null;
@@ -76,7 +47,7 @@ export const ProjectPhasesSectionPage: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setIsAddPhaseOpen(true)}
+          onClick={() => navigate(`/projects/${project.id}/phases/create`)}
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-sm transition-all hover:scale-105 active:scale-95"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -167,67 +138,6 @@ export const ProjectPhasesSectionPage: React.FC = () => {
           ))
         )}
       </div>
-
-      {/* Add Phase Modal */}
-      {isAddPhaseOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
-          <div 
-            className="w-full max-w-md bg-white rounded-[28px] shadow-2xl border border-white/80 overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-[#F8FAFF]">
-              <h3 className="font-extrabold text-slate-900 text-lg">Create Project Phase</h3>
-              <button 
-                onClick={() => setIsAddPhaseOpen(false)}
-                className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreatePhase} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Phase Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Phase 4: Staging Deployment & Beta"
-                  value={phaseName}
-                  onChange={(e) => setPhaseName(e.target.value)}
-                  required
-                  className="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Phase Description</label>
-                <textarea
-                  rows={3}
-                  placeholder="Summary of objectives and deliverables..."
-                  value={phaseDesc}
-                  onChange={(e) => setPhaseDesc(e.target.value)}
-                  className="w-full px-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setIsAddPhaseOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-sm"
-                >
-                  Create Phase
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

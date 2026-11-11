@@ -4,15 +4,18 @@ import { Layout } from './components/Layout';
 import { DashboardPage } from './pages/DashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { CreateProjectPage } from './pages/projects/CreateProjectPage';
 import { ProjectSectionsPage } from './pages/ProjectSectionsPage';
 
 // Section Dedicated Pages
 import { ProjectDetailsSectionPage } from './pages/sections/ProjectDetailsSectionPage';
 import { ProjectFeaturesSectionPage } from './pages/sections/ProjectFeaturesSectionPage';
+import { AddFeaturePage } from './pages/sections/AddFeaturePage';
 import { ProjectFeatureDetailsSectionPage } from './pages/sections/ProjectFeatureDetailsSectionPage';
 import { ProjectEmployeesSectionPage } from './pages/sections/ProjectEmployeesSectionPage';
 import { ProjectAssignEmployeesSectionPage } from './pages/sections/ProjectAssignEmployeesSectionPage';
 import { ProjectPhasesSectionPage } from './pages/sections/ProjectPhasesSectionPage';
+import { CreatePhasePage } from './pages/sections/CreatePhasePage';
 import { ProjectPhaseDetailsSectionPage } from './pages/sections/ProjectPhaseDetailsSectionPage';
 import { ProjectDocumentsSectionPage } from './pages/sections/ProjectDocumentsSectionPage';
 import { ProjectCredentialsSectionPage } from './pages/sections/ProjectCredentialsSectionPage';
@@ -82,6 +85,16 @@ export const App: React.FC = () => {
             } 
           />
 
+          {/* 2b. Create Project Page */}
+          <Route 
+            path="/projects/create" 
+            element={
+              <ProtectedRoute>
+                <CreateProjectPage />
+              </ProtectedRoute>
+            } 
+          />
+
           {/* 3. Project Dedicated Sections Hub */}
           <Route 
             path="/projects/:projectId" 
@@ -95,10 +108,12 @@ export const App: React.FC = () => {
           {/* 4. Individual Section Dedicated Pages */}
           <Route path="/projects/:projectId/details" element={<ProtectedRoute><ProjectDetailsSectionPage /></ProtectedRoute>} />
           <Route path="/projects/:projectId/features" element={<ProtectedRoute><ProjectFeaturesSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/features/create" element={<ProtectedRoute><AddFeaturePage /></ProtectedRoute>} />
           <Route path="/projects/:projectId/features/:featureId" element={<ProtectedRoute><ProjectFeatureDetailsSectionPage /></ProtectedRoute>} />
           <Route path="/projects/:projectId/employees" element={<ProtectedRoute><ProjectEmployeesSectionPage /></ProtectedRoute>} />
           <Route path="/projects/:projectId/assign-employees" element={<ProtectedRoute><ProjectAssignEmployeesSectionPage /></ProtectedRoute>} />
           <Route path="/projects/:projectId/phases" element={<ProtectedRoute><ProjectPhasesSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/phases/create" element={<ProtectedRoute><CreatePhasePage /></ProtectedRoute>} />
           <Route path="/projects/:projectId/phases/:phaseId" element={<ProtectedRoute><ProjectPhaseDetailsSectionPage /></ProtectedRoute>} />
           <Route path="/projects/:projectId/documents" element={<ProtectedRoute><ProjectDocumentsSectionPage /></ProtectedRoute>} />
           <Route path="/projects/:projectId/credentials" element={<ProtectedRoute><ProjectCredentialsSectionPage /></ProtectedRoute>} />

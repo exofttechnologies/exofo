@@ -191,7 +191,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       </div>
 
       {/* 2. Assignment & Project Association Card */}
-      <div className="glass-surface rounded-[26px] p-5 sm:p-7 border border-white/80 shadow-glass space-y-5">
+      <div className="relative z-20 glass-surface rounded-[26px] p-5 sm:p-7 border border-white/80 shadow-glass space-y-5">
         <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
           <Layers className="w-4 h-4 text-blue-600" />
           <span>Assignment & Project</span>
@@ -215,7 +215,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({
       </div>
 
       {/* 3. Status, Priority & Timeline Card */}
-      <div className="glass-surface rounded-[26px] p-5 sm:p-7 border border-white/80 shadow-glass space-y-5">
+      <div className="relative z-10 glass-surface rounded-[26px] p-5 sm:p-7 border border-white/80 shadow-glass space-y-5">
         <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
           <Flag className="w-4 h-4 text-blue-600" />
           <span>Status, Priority & Timeline</span>

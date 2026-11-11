@@ -20,7 +20,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { currentProjects, projectStats } from '../data/mockData';
 import { Project } from '../types';
 import { FloatingAddButton } from '../components/tasks/FloatingAddButton';
-import { CreateProjectModal } from '../components/CreateProjectModal';
 
 export const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -38,15 +37,14 @@ export const ProjectsPage: React.FC = () => {
   });
   const [activeFilter, setActiveFilter] = useState<string>(initialStatus);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
-
   useEffect(() => {
-    const handleOpenCreate = () => setIsCreateModalOpen(true);
+    // Navigate to create page when bottom nav plus button fires this event
+    const handleOpenCreate = () => navigate('/projects/create');
     window.addEventListener('open-create-project-modal', handleOpenCreate);
     return () => {
       window.removeEventListener('open-create-project-modal', handleOpenCreate);
     };
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     const status = searchParams.get('status');
@@ -106,7 +104,7 @@ export const ProjectsPage: React.FC = () => {
 
         {/* Action Button: Create Project */}
         <button
-          onClick={() => setIsCreateModalOpen(true)}
+          onClick={() => navigate('/projects/create')}
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-sm transition-all hover:scale-105 active:scale-95"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -354,16 +352,7 @@ export const ProjectsPage: React.FC = () => {
       {/* Floating Add Project Button (Same plus icon as Tasks page) */}
       <FloatingAddButton 
         label="Create New Project" 
-        onClick={() => setIsCreateModalOpen(true)} 
-      />
-
-      {/* Create Project Modal */}
-      <CreateProjectModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onProjectCreated={(newProj) => {
-          setProjectsList([newProj, ...projectsList]);
-        }}
+        onClick={() => navigate('/projects/create')} 
       />
     </div>
   );
