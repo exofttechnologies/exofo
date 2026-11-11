@@ -45,14 +45,46 @@ export const LoginPage: React.FC = () => {
     setError(null);
     setIsLoading(true);
 
-    // Simulate login authentication
+    // Simulate login authentication & route according to role
     setTimeout(() => {
+      const trimmed = loginId.trim().toLowerCase();
       localStorage.setItem('exofo_auth', 'true');
-      localStorage.setItem('exofo_user_email', loginId.trim());
+      localStorage.setItem('exofo_user_email', trimmed);
+
+      const isEmployee = 
+        trimmed.includes('ahmed') || 
+        trimmed.includes('sarah') || 
+        trimmed.includes('alex') || 
+        trimmed.includes('ameen') || 
+        trimmed.includes('mohammed') || 
+        trimmed.startsWith('emp') ||
+        (trimmed !== 'admin@exofo.internal' && trimmed !== 'admin');
+
+      if (isEmployee) {
+        if (trimmed.includes('ahmed') || trimmed === 'emp009') {
+          localStorage.setItem('exofo_employee_id', 'emp-ahmed');
+        } else if (trimmed.includes('sarah') || trimmed === 'emp001') {
+          localStorage.setItem('exofo_employee_id', 'emp-1');
+        } else if (trimmed.includes('alex') || trimmed === 'emp002') {
+          localStorage.setItem('exofo_employee_id', 'emp-2');
+        } else if (trimmed.includes('ameen') || trimmed === 'emp010') {
+          localStorage.setItem('exofo_employee_id', 'emp-ameen');
+        } else if (trimmed.includes('mohammed') || trimmed === 'emp011') {
+          localStorage.setItem('exofo_employee_id', 'emp-mohammed');
+        } else {
+          localStorage.setItem('exofo_employee_id', 'emp-ahmed');
+        }
+      }
+
       setIsLoading(false);
-      setSuccessToast('Signed in successfully! Redirecting to Dashboard...');
+      const destination = isEmployee ? '/employee/dashboard' : '/';
+      setSuccessToast(
+        isEmployee
+          ? 'Signed in as Employee! Redirecting to Workspace...'
+          : 'Signed in as Administrator! Redirecting to Dashboard...'
+      );
       setTimeout(() => {
-        navigate('/');
+        navigate(destination);
       }, 700);
     }, 600);
   };
@@ -181,13 +213,52 @@ export const LoginPage: React.FC = () => {
             <div className={`w-14 h-1.5 rounded-full bg-[#E2E6EF] mx-auto mb-6 ${previewMode === 'phone' ? 'block' : 'lg:hidden'}`} />
 
             {/* Header: Brand & Subtitle */}
-            <div className="text-center mb-7">
+            <div className="text-center mb-5">
               <h1 className="text-3xl sm:text-[32px] font-extrabold text-[#0C102A] tracking-tight">
                 Exofo
               </h1>
               <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
                 Sign in to your Company Management System
               </p>
+            </div>
+
+            {/* Quick Demo Credentials Switcher */}
+            <div className="mb-5 p-2 rounded-2xl bg-slate-50 border border-slate-200/80">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center mb-1.5">
+                Quick 1-Click Demo Accounts
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginId('admin@exofo.internal');
+                    setPassword('admin123');
+                    setError(null);
+                  }}
+                  className={`px-2 py-1.5 rounded-xl text-[11px] font-bold border transition-all truncate text-center ${
+                    loginId === 'admin@exofo.internal'
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Admin Portal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLoginId('ahmed.dev@exofo.internal');
+                    setPassword('Welcome123!');
+                    setError(null);
+                  }}
+                  className={`px-2 py-1.5 rounded-xl text-[11px] font-bold border transition-all truncate text-center ${
+                    loginId === 'ahmed.dev@exofo.internal'
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-2xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  Employee Portal (Ahmed)
+                </button>
+              </div>
             </div>
 
             {/* Error Message */}

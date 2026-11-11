@@ -104,3 +104,4 @@ export const EmployeeQuickActionsCard: React.FC = () => {
     </div>
   );
 };
+

@@ -92,3 +92,4 @@ export const EmployeeHeader: React.FC<EmployeeHeaderProps> = ({
     </header>
   );
 };
+
