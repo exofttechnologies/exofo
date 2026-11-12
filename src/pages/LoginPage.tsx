@@ -89,6 +89,18 @@ export const LoginPage: React.FC = () => {
         trimmed.startsWith('emp') ||
         (roleTab === 'employee' && !isExplicitAdmin);
 
+      if (isEmployeeLogin && matchedEmployee) {
+        const pwdValid = await employeeService.verifyEmployeeLoginPassword(
+          matchedEmployee.id,
+          password
+        );
+        if (!pwdValid) {
+          setIsLoading(false);
+          setError('Invalid password. Please enter your updated password.');
+          return;
+        }
+      }
+
       localStorage.setItem('exofo_auth', 'true');
       localStorage.setItem('exofo_user_email', matchedEmployee ? matchedEmployee.email : trimmed);
       localStorage.setItem('exofo_user_role', isEmployeeLogin ? 'employee' : 'admin');

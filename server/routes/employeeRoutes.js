@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const router = express.Router();
 const Employee = require('../models/Employee');
 const Task = require('../models/Task');
@@ -6,6 +7,60 @@ const Project = require('../models/Project');
 
 function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function hashPassword(plainPassword) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const derived = crypto.scryptSync(String(plainPassword), salt, 64).toString('hex');
+  return `scrypt:${salt}:${derived}`;
+}
+
+function verifyPassword(plainPassword, storedHash) {
+  if (!plainPassword) return false;
+  if (!storedHash) {
+    return plainPassword === 'Welcome123!';
+  }
+  if (storedHash.startsWith('scrypt:')) {
+    const parts = storedHash.split(':');
+    if (parts.length !== 3) return false;
+    const [, salt, storedHex] = parts;
+    const derived = crypto.scryptSync(String(plainPassword), salt, 64);
+    const expected = Buffer.from(storedHex, 'hex');
+    if (derived.length !== expected.length) return false;
+    return crypto.timingSafeEqual(derived, expected);
+  }
+  // Support legacy unhashed demo records seamlessly until updated
+  return String(plainPassword) === String(storedHash);
+}
+
+function computeInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return String(name || 'EM').substring(0, 2).toUpperCase();
+}
+
+function sanitizeEmployee(empDoc) {
+  const obj = empDoc.toObject ? empDoc.toObject() : { ...empDoc };
+  delete obj.passwordHash;
+  return {
+    ...obj,
+    id: String(obj._id || obj.id || ''),
+    initials: obj.initials || computeInitials(obj.name),
+    joiningDate: obj.joiningDate ? new Date(obj.joiningDate).toISOString().split('T')[0] : '',
+  };
+}
+
+function isRequesterAuthorized(req, employee) {
+  const requesterHeader = req.headers['x-employee-id'];
+  if (!requesterHeader) return true;
+  const cleanReq = String(requesterHeader).trim().toLowerCase();
+  return (
+    cleanReq === String(employee._id).toLowerCase() ||
+    cleanReq === String(employee.employeeId).toLowerCase() ||
+    cleanReq === String(employee.email).toLowerCase()
+  );
 }
 
 async function resolveEmployee(identifier) {
@@ -49,7 +104,7 @@ router.get('/', async (req, res) => {
       ];
     }
 
-    const employees = await Employee.find(filter).sort({ createdAt: -1 });
+    const employees = await Employee.find(filter).select('-passwordHash').sort({ createdAt: -1 });
     res.json({ success: true, count: employees.length, data: employees });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -93,11 +148,11 @@ router.post('/', async (req, res) => {
       joiningDate: new Date(joiningDate),
       employeeId: finalEmpId.trim(),
       accountStatus: 'Active',
-      passwordHash: temporaryPassword || 'Welcome123!',
+      passwordHash: hashPassword(temporaryPassword || 'Welcome123!'),
     });
 
     const saved = await newEmp.save();
-    res.status(201).json({ success: true, data: saved });
+    res.status(201).json({ success: true, data: sanitizeEmployee(saved) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -287,6 +342,151 @@ router.get('/:employeeId/projects', async (req, res) => {
 });
 
 /**
+ * GET /api/employees/:employeeId/profile
+ * Fetch authenticated employee profile + live work summary counts
+ */
+router.get('/:employeeId/profile', async (req, res) => {
+  try {
+    const employee = await resolveEmployee(req.params.employeeId);
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    if (!isRequesterAuthorized(req, employee)) {
+      return res.status(403).json({ success: false, message: "Access denied: cannot view another employee's profile" });
+    }
+
+    const assignedProjectsCount = await Project.countDocuments({
+      status: { $ne: 'Archived' },
+      $or: [
+        { 'assignedEmployees.employeeRef': employee._id },
+        { 'assignedEmployees.employeeId': new RegExp(`^${escapeRegex(employee.employeeId)}$`, 'i') },
+        { 'assignedEmployees.email': employee.email.toLowerCase() },
+        { 'assignedEmployees.name': new RegExp(`^${escapeRegex(employee.name)}$`, 'i') },
+      ],
+    });
+
+    const assignedTasks = await Task.find({
+      $or: [
+        { assignedEmployee: employee._id },
+        { assignedEmployeeName: new RegExp(`^${escapeRegex(employee.name)}$`, 'i') },
+      ],
+    });
+
+    const activeTasks = assignedTasks.filter(
+      (t) => t.status === 'Pending' || t.status === 'In Progress'
+    ).length;
+    const completedTasks = assignedTasks.filter((t) => t.status === 'Completed').length;
+
+    res.json({
+      success: true,
+      data: {
+        employee: sanitizeEmployee(employee),
+        workSummary: {
+          assignedProjects: assignedProjectsCount,
+          activeTasks,
+          completedTasks,
+        },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * PUT /api/employees/:employeeId/profile
+ * Update only employee-permitted profile fields (name, phone, address, avatar)
+ */
+router.put('/:employeeId/profile', async (req, res) => {
+  try {
+    const employee = await resolveEmployee(req.params.employeeId);
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    if (!isRequesterAuthorized(req, employee)) {
+      return res.status(403).json({ success: false, message: "Access denied: cannot edit another employee's profile" });
+    }
+
+    // Reject attempts to alter admin-controlled employment fields
+    const forbiddenFields = ['employeeId', 'designation', 'department', 'joiningDate', 'accountStatus', 'reportingManager', 'passwordHash'];
+    const attemptedForbidden = forbiddenFields.filter((f) => Object.prototype.hasOwnProperty.call(req.body, f));
+    if (attemptedForbidden.length > 0) {
+      return res.status(403).json({
+        success: false,
+        message: `You are not permitted to modify employment field(s): ${attemptedForbidden.join(', ')}`,
+      });
+    }
+
+    const { name, phone, address, avatar } = req.body;
+
+    if (!name || !String(name).trim()) {
+      return res.status(400).json({ success: false, message: 'Full Name is required' });
+    }
+    if (!phone || !String(phone).trim()) {
+      return res.status(400).json({ success: false, message: 'Mobile Number is required' });
+    }
+
+    employee.name = String(name).trim();
+    employee.phone = String(phone).trim();
+    if (typeof address === 'string') {
+      employee.address = address.trim();
+    }
+    if (typeof avatar === 'string') {
+      employee.avatar = avatar;
+    }
+
+    const saved = await employee.save();
+    res.json({ success: true, data: sanitizeEmployee(saved) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * POST /api/employees/:employeeId/change-password
+ * Verify current password and save scrypt-hashed new password
+ */
+router.post('/:employeeId/change-password', async (req, res) => {
+  try {
+    const employee = await resolveEmployee(req.params.employeeId);
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    if (!isRequesterAuthorized(req, employee)) {
+      return res.status(403).json({ success: false, message: "Access denied: cannot change another employee's password" });
+    }
+
+    const { currentPassword, newPassword, confirmNewPassword } = req.body;
+
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      return res.status(400).json({ success: false, message: 'All password fields are required' });
+    }
+
+    if (!verifyPassword(currentPassword, employee.passwordHash)) {
+      return res.status(400).json({ success: false, message: 'Current password is incorrect' });
+    }
+
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ success: false, message: 'New password must be at least 8 characters long' });
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      return res.status(400).json({ success: false, message: 'New password and confirmation do not match' });
+    }
+
+    employee.passwordHash = hashPassword(newPassword);
+    await employee.save();
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
  * GET /api/employees/:employeeId
  */
 router.get('/:employeeId', async (req, res) => {
@@ -294,13 +494,13 @@ router.get('/:employeeId', async (req, res) => {
     const { employeeId } = req.params;
     const employee = await Employee.findOne({
       $or: [{ employeeId: employeeId }, { _id: employeeId.match(/^[0-9a-fA-F]{24}$/) ? employeeId : null }],
-    });
+    }).select('-passwordHash');
 
     if (!employee) {
       return res.status(404).json({ success: false, message: 'Employee not found' });
     }
 
-    res.json({ success: true, data: employee });
+    res.json({ success: true, data: sanitizeEmployee(employee) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -338,7 +538,7 @@ router.put('/:employeeId', async (req, res) => {
     if (accountStatus) employee.accountStatus = accountStatus;
 
     const saved = await employee.save();
-    res.json({ success: true, data: saved });
+    res.json({ success: true, data: sanitizeEmployee(saved) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -363,7 +563,7 @@ router.patch('/:employeeId/status', async (req, res) => {
     employee.accountStatus = accountStatus || (employee.accountStatus === 'Active' ? 'Inactive' : 'Active');
     const saved = await employee.save();
 
-    res.json({ success: true, data: saved });
+    res.json({ success: true, data: sanitizeEmployee(saved) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

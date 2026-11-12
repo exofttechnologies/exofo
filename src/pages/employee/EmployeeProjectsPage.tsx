@@ -23,7 +23,6 @@ import { projectService, EmployeeProjectsSummary } from '../../services/projectS
 import { EmployeeHeader } from '../../components/employee/EmployeeHeader';
 import { EmployeeBottomNavigation } from '../../components/employee/EmployeeBottomNavigation';
 import { NotificationsModal } from '../../components/NotificationsModal';
-import { ProfileDrawer } from '../../components/ProfileDrawer';
 import { Employee, Project } from '../../types';
 
 const STATUS_FILTERS = ['All', 'Not Started', 'In Progress', 'On Hold', 'Completed'] as const;
@@ -82,7 +81,6 @@ export const EmployeeProjectsPage: React.FC = () => {
 
   // Header interaction modals
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   // Debounce search query before querying backend/service
   useEffect(() => {
@@ -229,7 +227,7 @@ export const EmployeeProjectsPage: React.FC = () => {
           employee={employee}
           unreadCount={2}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
-          onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenProfile={() => navigate('/employee/profile')}
         />
 
         {/* Page Title directly on dotted background (not inside a card) */}
@@ -597,10 +595,7 @@ export const EmployeeProjectsPage: React.FC = () => {
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
       />
-      <ProfileDrawer
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-      />
     </div>
   );
 };
+

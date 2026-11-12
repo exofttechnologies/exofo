@@ -50,6 +50,20 @@ const EmployeeSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    dateOfBirth: {
+      type: String,
+      default: '',
+    },
+    address: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    reportingManager: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     projectRole: {
       type: String,
       default: '',

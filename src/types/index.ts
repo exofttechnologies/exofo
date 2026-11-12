@@ -184,6 +184,9 @@ export interface Employee {
   joiningDate: string;
   accountStatus: EmployeeAccountStatus;
   avatar?: string;
+  dateOfBirth?: string;
+  address?: string;
+  reportingManager?: string;
   projectRole?: string;
   currentTaskCount?: number;
   assignedProjects?: string[]; // IDs or names

@@ -17,7 +17,6 @@ import { taskService } from '../../services/taskService';
 import { EmployeeHeader } from '../../components/employee/EmployeeHeader';
 import { EmployeeBottomNavigation } from '../../components/employee/EmployeeBottomNavigation';
 import { NotificationsModal } from '../../components/NotificationsModal';
-import { ProfileDrawer } from '../../components/ProfileDrawer';
 import { Task, TaskStatus } from '../../types';
 
 export const EmployeeTasksPage: React.FC = () => {
@@ -35,7 +34,6 @@ export const EmployeeTasksPage: React.FC = () => {
 
   // Modals
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -139,7 +137,7 @@ export const EmployeeTasksPage: React.FC = () => {
           employee={dashboardData?.employee || null}
           unreadCount={dashboardData?.unreadNotifications ?? 2}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
-          onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenProfile={() => navigate('/employee/profile')}
         />
 
         {/* Back Button */}
@@ -387,10 +385,6 @@ export const EmployeeTasksPage: React.FC = () => {
       <NotificationsModal
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
-      />
-      <ProfileDrawer
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
       />
     </div>
   );

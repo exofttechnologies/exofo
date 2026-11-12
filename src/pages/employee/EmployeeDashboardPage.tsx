@@ -13,7 +13,6 @@ import { EmployeeTodayTasksCard } from '../../components/employee/EmployeeTodayT
 import { EmployeeQuickActionsCard } from '../../components/employee/EmployeeQuickActionsCard';
 import { EmployeeBottomNavigation } from '../../components/employee/EmployeeBottomNavigation';
 import { NotificationsModal } from '../../components/NotificationsModal';
-import { ProfileDrawer } from '../../components/ProfileDrawer';
 import { Employee } from '../../types';
 
 export const EmployeeDashboardPage: React.FC = () => {
@@ -25,7 +24,6 @@ export const EmployeeDashboardPage: React.FC = () => {
 
   // Modals
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   // Available employees for quick switching / testing
   const [availableEmployees, setAvailableEmployees] = useState<Employee[]>([]);
@@ -92,7 +90,7 @@ export const EmployeeDashboardPage: React.FC = () => {
           employee={dashboardData?.employee || null}
           unreadCount={dashboardData?.unreadNotifications ?? 2}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
-          onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenProfile={() => navigate('/employee/profile')}
         />
 
         {/* Optional Employee Switcher Pill Bar for Testing */}
@@ -201,11 +199,6 @@ export const EmployeeDashboardPage: React.FC = () => {
       <NotificationsModal
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
-      />
-
-      <ProfileDrawer
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
       />
     </div>
   );

@@ -57,6 +57,67 @@ export interface EmployeeDashboardData {
   unreadNotifications: number;
 }
 
+export interface EmployeeProfileData {
+  employee: Employee;
+  workSummary: {
+    assignedProjects: number;
+    activeTasks: number;
+    completedTasks: number;
+  };
+}
+
+export interface EmployeeSelfProfileUpdatePayload {
+  name: string;
+  phone: string;
+  address?: string;
+  avatar?: string;
+}
+
+export interface EmployeeChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmNewPassword: string;
+}
+
+const EMP_PWD_PREFIX = 'exofo_emp_pwd_';
+
+async function hashPasswordClient(plainPassword: string, existingSalt?: string): Promise<string> {
+  const bytes = new Uint8Array(16);
+  if (!existingSalt) {
+    window.crypto.getRandomValues(bytes);
+  }
+  const salt =
+    existingSalt ||
+    Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+
+  const encoded = new TextEncoder().encode(`${salt}:${plainPassword}`);
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', encoded);
+  const hashHex = Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  return `sha256:${salt}:${hashHex}`;
+}
+
+async function verifyLocalEmployeePassword(employeeId: string, plainPassword: string): Promise<boolean> {
+  if (!plainPassword) return false;
+  const stored = localStorage.getItem(`${EMP_PWD_PREFIX}${employeeId}`);
+  if (!stored) {
+    // Initial default password for seeded accounts
+    return plainPassword === 'Welcome123!';
+  }
+  if (stored.startsWith('sha256:')) {
+    const parts = stored.split(':');
+    if (parts.length !== 3) return false;
+    const [, salt] = parts;
+    const computed = await hashPasswordClient(plainPassword, salt);
+    return computed === stored;
+  }
+  return false;
+}
+
 export const employeeService = {
   /**
    * Fetch all employees with optional filters
@@ -486,6 +547,282 @@ export const employeeService = {
       assignedTasks: finalTasks,
       unreadNotifications: 2,
     };
+  },
+
+  /**
+   * Resolve authenticated employee strictly (supports id, EMP009, email, or name)
+   */
+  async resolveEmployeeProfile(idOrEmpIdOrEmail: string): Promise<Employee> {
+    if (!idOrEmpIdOrEmail || !idOrEmpIdOrEmail.trim()) {
+      throw new Error('Authenticated employee identifier is required.');
+    }
+    let employee = await this.getEmployeeById(idOrEmpIdOrEmail);
+    if (!employee) {
+      const all = await this.getEmployees();
+      employee =
+        all.find(
+          (e) =>
+            e.email.toLowerCase() === idOrEmpIdOrEmail.toLowerCase() ||
+            e.name.toLowerCase() === idOrEmpIdOrEmail.toLowerCase()
+        ) || null;
+    }
+    if (!employee) {
+      throw new Error('Employee profile not found.');
+    }
+    return employee;
+  },
+
+  /**
+   * Fetch authenticated employee's full profile and live work summary counts
+   */
+  async getEmployeeProfile(idOrEmpIdOrEmail: string): Promise<EmployeeProfileData> {
+    const employee = await this.resolveEmployeeProfile(idOrEmpIdOrEmail);
+    const requesterHeader = employee.employeeId || employee.id;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 750);
+      const res = await fetch(`/api/employees/${encodeURIComponent(requesterHeader)}/profile`, {
+        headers: { 'x-employee-id': requesterHeader },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.status === 401 || res.status === 403) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Access denied while loading profile.');
+      }
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.success && json.data) {
+          return {
+            employee: { ...employee, ...json.data.employee },
+            workSummary: json.data.workSummary,
+          };
+        }
+      }
+    } catch (err: any) {
+      if (err?.message && err.message.toLowerCase().includes('access denied')) {
+        throw err;
+      }
+    }
+
+    // Dynamic local database calculation fallback
+    let projectsList = currentProjects;
+    try {
+      const savedProjects = localStorage.getItem('exofo_projects');
+      if (savedProjects) projectsList = JSON.parse(savedProjects);
+    } catch {
+      // ignore
+    }
+
+    const assignedProjectsCount = projectsList.filter(
+      (p) =>
+        p.status !== 'Archived' &&
+        (p.assignedEmployees.some(
+          (e) =>
+            e.id === employee.id ||
+            (e.email && employee.email && e.email.toLowerCase() === employee.email.toLowerCase()) ||
+            e.name.toLowerCase() === employee.name.toLowerCase()
+        ) ||
+          (employee.assignedProjects &&
+            employee.assignedProjects.some(
+              (ap) =>
+                ap.toLowerCase() === p.name.toLowerCase() ||
+                ap === p.id ||
+                ap.toLowerCase() === p.projectCode.toLowerCase()
+            )))
+    ).length;
+
+    const allTasks = await taskService.getTasks();
+    const myTasks = allTasks.filter(
+      (t) =>
+        t.assignedEmployeeId === employee.id ||
+        t.assignedEmployeeId?.toLowerCase() === employee.employeeId?.toLowerCase() ||
+        t.assignedEmployeeName?.toLowerCase() === employee.name.toLowerCase()
+    );
+
+    const activeTasks = myTasks.filter(
+      (t) => t.status === 'Pending' || t.status === 'In Progress'
+    ).length;
+    const completedTasks = myTasks.filter((t) => t.status === 'Completed').length;
+
+    return {
+      employee,
+      workSummary: {
+        assignedProjects: assignedProjectsCount,
+        activeTasks,
+        completedTasks,
+      },
+    };
+  },
+
+  /**
+   * Update only permitted self-service profile fields (avatar, name, phone, address)
+   */
+  async updateEmployeeSelfProfile(
+    idOrEmpIdOrEmail: string,
+    payload: EmployeeSelfProfileUpdatePayload
+  ): Promise<Employee> {
+    if (!payload.name || !payload.name.trim()) {
+      throw new Error('Full Name is required.');
+    }
+    if (!payload.phone || !payload.phone.trim()) {
+      throw new Error('Mobile Number is required.');
+    }
+
+    const employee = await this.resolveEmployeeProfile(idOrEmpIdOrEmail);
+    const requesterHeader = employee.employeeId || employee.id;
+
+    // Only include employee-editable fields
+    const permittedBody: EmployeeSelfProfileUpdatePayload = {
+      name: payload.name.trim(),
+      phone: payload.phone.trim(),
+      address: typeof payload.address === 'string' ? payload.address.trim() : employee.address || '',
+      avatar: typeof payload.avatar === 'string' ? payload.avatar : employee.avatar || '',
+    };
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 800);
+      const res = await fetch(`/api/employees/${encodeURIComponent(requesterHeader)}/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-employee-id': requesterHeader,
+        },
+        body: JSON.stringify(permittedBody),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Unable to update profile.');
+      }
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.success && json.data) {
+          const idx = inMemoryEmployees.findIndex((e) => e.id === employee.id);
+          if (idx !== -1) {
+            inMemoryEmployees[idx] = { ...inMemoryEmployees[idx], ...json.data };
+            saveEmployees(inMemoryEmployees);
+          }
+          return json.data;
+        }
+      }
+    } catch (err: any) {
+      if (err?.message && !err.message.toLowerCase().includes('fetch') && err.name !== 'AbortError') {
+        throw err;
+      }
+    }
+
+    // Local persistence fallback
+    await new Promise((r) => setTimeout(r, 150));
+    inMemoryEmployees = loadEmployees();
+    const index = inMemoryEmployees.findIndex(
+      (e) => e.id === employee.id || e.employeeId.toLowerCase() === employee.employeeId.toLowerCase()
+    );
+
+    const parts = permittedBody.name.split(/\s+/).filter(Boolean);
+    const initials = (
+      parts.length >= 2
+        ? parts[0][0] + parts[parts.length - 1][0]
+        : permittedBody.name.substring(0, 2)
+    ).toUpperCase();
+
+    const updatedEmployee: Employee = {
+      ...employee,
+      name: permittedBody.name,
+      phone: permittedBody.phone,
+      address: permittedBody.address,
+      avatar: permittedBody.avatar,
+      initials,
+    };
+
+    if (index !== -1) {
+      inMemoryEmployees[index] = updatedEmployee;
+      saveEmployees(inMemoryEmployees);
+    }
+
+    return updatedEmployee;
+  },
+
+  /**
+   * Verify current password and securely hash + store new employee password
+   */
+  async changeEmployeePassword(
+    idOrEmpIdOrEmail: string,
+    payload: EmployeeChangePasswordPayload
+  ): Promise<{ success: boolean; message: string }> {
+    const { currentPassword, newPassword, confirmNewPassword } = payload;
+
+    if (!currentPassword) {
+      throw new Error('Current password is required.');
+    }
+    if (!newPassword || newPassword.length < 8) {
+      throw new Error('New password must be at least 8 characters long.');
+    }
+    if (newPassword !== confirmNewPassword) {
+      throw new Error('New password and confirmation do not match.');
+    }
+
+    const employee = await this.resolveEmployeeProfile(idOrEmpIdOrEmail);
+    const requesterHeader = employee.employeeId || employee.id;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 800);
+      const res = await fetch(`/api/employees/${encodeURIComponent(requesterHeader)}/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-employee-id': requesterHeader,
+        },
+        body: JSON.stringify({ currentPassword, newPassword, confirmNewPassword }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.status === 400 || res.status === 401 || res.status === 403) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Password update failed.');
+      }
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.success) {
+          const hashed = await hashPasswordClient(newPassword);
+          localStorage.setItem(`${EMP_PWD_PREFIX}${employee.id}`, hashed);
+          return { success: true, message: json.message || 'Password updated successfully.' };
+        }
+      }
+    } catch (err: any) {
+      if (err?.message && !err.message.toLowerCase().includes('fetch') && err.name !== 'AbortError') {
+        throw err;
+      }
+    }
+
+    // Offline / static-host verification using Web Crypto SHA-256 salted hash
+    const isValid = await verifyLocalEmployeePassword(employee.id, currentPassword);
+    if (!isValid) {
+      throw new Error('The current password you entered is incorrect.');
+    }
+
+    const newHashed = await hashPasswordClient(newPassword);
+    localStorage.setItem(`${EMP_PWD_PREFIX}${employee.id}`, newHashed);
+    return { success: true, message: 'Password updated successfully.' };
+  },
+
+  /**
+   * Helper for LoginPage to verify employee password if employee set a custom hashed password
+   */
+  async verifyEmployeeLoginPassword(employeeId: string, plainPassword: string): Promise<boolean> {
+    const stored = localStorage.getItem(`${EMP_PWD_PREFIX}${employeeId}`);
+    if (!stored) return Boolean(plainPassword); // Allow demo login before custom password is set
+    return verifyLocalEmployeePassword(employeeId, plainPassword);
   },
 };
 

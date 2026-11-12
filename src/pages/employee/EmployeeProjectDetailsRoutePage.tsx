@@ -15,7 +15,6 @@ import { projectService } from '../../services/projectService';
 import { EmployeeHeader } from '../../components/employee/EmployeeHeader';
 import { EmployeeBottomNavigation } from '../../components/employee/EmployeeBottomNavigation';
 import { NotificationsModal } from '../../components/NotificationsModal';
-import { ProfileDrawer } from '../../components/ProfileDrawer';
 import { Employee, Project } from '../../types';
 
 /**
@@ -33,7 +32,6 @@ export const EmployeeProjectDetailsRoutePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -96,7 +94,7 @@ export const EmployeeProjectDetailsRoutePage: React.FC = () => {
           employee={employee}
           unreadCount={2}
           onOpenNotifications={() => setIsNotificationsOpen(true)}
-          onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenProfile={() => navigate('/employee/profile')}
         />
 
         <div className="mb-6">
@@ -172,10 +170,7 @@ export const EmployeeProjectDetailsRoutePage: React.FC = () => {
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
       />
-      <ProfileDrawer
-        isOpen={isProfileOpen}
-        onClose={() => setIsProfileOpen(false)}
-      />
     </div>
   );
 };
+

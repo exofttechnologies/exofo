@@ -49,6 +49,9 @@ import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
 import { EmployeeProjectsPage } from './pages/employee/EmployeeProjectsPage';
 import { EmployeeProjectDetailsRoutePage } from './pages/employee/EmployeeProjectDetailsRoutePage';
 import { EmployeeTasksPage } from './pages/employee/EmployeeTasksPage';
+import { EmployeeProfilePage } from './pages/employee/EmployeeProfilePage';
+import { EmployeeProfileEditPage } from './pages/employee/EmployeeProfileEditPage';
+import { EmployeeChangePasswordPage } from './pages/employee/EmployeeChangePasswordPage';
 
 /**
  * ProtectedRoute Component
@@ -161,7 +164,9 @@ export const App: React.FC = () => {
           <Route path="/employee/projects" element={<ProtectedRoute><EmployeeProjectsPage /></ProtectedRoute>} />
           <Route path="/employee/projects/:projectId" element={<ProtectedRoute><EmployeeProjectDetailsRoutePage /></ProtectedRoute>} />
           <Route path="/employee/tasks" element={<ProtectedRoute><EmployeeTasksPage /></ProtectedRoute>} />
-          <Route path="/employee/profile" element={<Navigate to="/profile" replace />} />
+          <Route path="/employee/profile" element={<ProtectedRoute><EmployeeProfilePage /></ProtectedRoute>} />
+          <Route path="/employee/profile/edit" element={<ProtectedRoute><EmployeeProfileEditPage /></ProtectedRoute>} />
+          <Route path="/employee/profile/change-password" element={<ProtectedRoute><EmployeeChangePasswordPage /></ProtectedRoute>} />
 
           {/* Fallback routes */}
           <Route path="/team" element={<ProtectedRoute><EmployeeListingPage /></ProtectedRoute>} />
