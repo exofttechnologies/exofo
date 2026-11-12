@@ -342,6 +342,96 @@ router.get('/:employeeId/projects', async (req, res) => {
 });
 
 /**
+ * PUT /api/employees/:employeeId/projects/:projectId
+ * Allow assigned employee to view & update project details (without altering assignments or code)
+ */
+router.put('/:employeeId/projects/:projectId', async (req, res) => {
+  try {
+    const { employeeId, projectId } = req.params;
+    const employee = await resolveEmployee(employeeId);
+
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    if (employee.accountStatus === 'Inactive') {
+      return res.status(403).json({ success: false, message: 'Inactive accounts cannot edit projects' });
+    }
+
+    if (!isRequesterAuthorized(req, employee)) {
+      return res.status(403).json({ success: false, message: 'Access denied: unauthorized project update attempt' });
+    }
+
+    const projectIdConditions = [
+      { projectCode: new RegExp(`^${escapeRegex(projectId)}$`, 'i') },
+    ];
+    if (String(projectId).match(/^[0-9a-fA-F]{24}$/)) {
+      projectIdConditions.push({ _id: projectId });
+    }
+
+    const assignmentConditions = [
+      { 'assignedEmployees.employeeRef': employee._id },
+      { 'assignedEmployees.employeeId': new RegExp(`^${escapeRegex(employee.employeeId)}$`, 'i') },
+      { 'assignedEmployees.email': employee.email.toLowerCase() },
+      { 'assignedEmployees.name': new RegExp(`^${escapeRegex(employee.name)}$`, 'i') },
+    ];
+
+    const project = await Project.findOne({
+      $and: [
+        { $or: projectIdConditions },
+        { $or: assignmentConditions },
+      ],
+    });
+
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found or not assigned to this employee' });
+    }
+
+    const {
+      name,
+      description,
+      category,
+      status,
+      priority,
+      progress,
+      startDate,
+      expectedCompletionDate,
+      client,
+    } = req.body;
+
+    if (name && String(name).trim()) project.name = String(name).trim();
+    if (typeof description === 'string') project.description = description.trim();
+    if (typeof category === 'string' && category.trim()) project.category = category.trim();
+    if (status && ['Not Started', 'In Progress', 'On Hold', 'Completed'].includes(status)) {
+      project.status = status;
+    }
+    if (priority && ['High', 'Medium', 'Low'].includes(priority)) {
+      project.priority = priority;
+    }
+    if (typeof progress === 'number' && progress >= 0 && progress <= 100) {
+      project.progress = Math.round(progress);
+    }
+    if (typeof startDate === 'string') project.startDate = startDate;
+    if (typeof expectedCompletionDate === 'string') project.expectedCompletionDate = expectedCompletionDate;
+
+    if (client && typeof client === 'object') {
+      project.client = {
+        name: typeof client.name === 'string' ? client.name.trim() : project.client.name,
+        phone: typeof client.phone === 'string' ? client.phone.trim() : project.client.phone,
+        email: typeof client.email === 'string' ? client.email.trim() : project.client.email,
+        address: typeof client.address === 'string' ? client.address.trim() : project.client.address,
+        company: typeof client.company === 'string' ? client.company.trim() : project.client.company,
+      };
+    }
+
+    const saved = await project.save();
+    res.json({ success: true, data: saved });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
  * GET /api/employees/:employeeId/profile
  * Fetch authenticated employee profile + live work summary counts
  */

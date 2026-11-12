@@ -309,3 +309,4 @@ export const EmployeeChangePasswordPage: React.FC = () => {
     </div>
   );
 };
+

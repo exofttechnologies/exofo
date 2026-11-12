@@ -22,6 +22,14 @@ function loadProjectsStore(): Project[] {
 // In-memory / persistent mock store (mirrors MongoDB backend schema)
 let projectsStore: Project[] = loadProjectsStore();
 
+function saveProjectsStore(list: Project[]) {
+  try {
+    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    // ignore storage errors
+  }
+}
+
 export interface EmployeeProjectsSummary {
   total: number;
   inProgress: number;
@@ -201,6 +209,7 @@ export const projectService = {
    */
   async updateProject(projectId: string, updates: Partial<Project>): Promise<Project> {
     await new Promise((resolve) => setTimeout(resolve, 200));
+    projectsStore = loadProjectsStore();
 
     const index = projectsStore.findIndex(
       (p) => p.id === projectId || p.projectCode.toLowerCase() === projectId.toLowerCase()
@@ -216,7 +225,73 @@ export const projectService = {
     };
 
     projectsStore[index] = updated;
+    saveProjectsStore(projectsStore);
     return { ...updated };
+  },
+
+  /**
+   * Employee-scoped project details update (verifies assignment before updating)
+   */
+  async updateEmployeeProjectDetails(
+    employeeIdentifier: string,
+    projectId: string,
+    updates: Pick<
+      Partial<Project>,
+      'name' | 'description' | 'category' | 'status' | 'priority' | 'progress' | 'startDate' | 'expectedCompletionDate' | 'client'
+    >
+  ): Promise<Project> {
+    const scope = await this.getEmployeeProjects(employeeIdentifier);
+    const assigned = scope.projects.find(
+      (p) => p.id === projectId || p.projectCode.toLowerCase() === projectId.toLowerCase()
+    );
+
+    if (!assigned) {
+      throw new Error('Project not found or not assigned to your employee account.');
+    }
+
+    const requesterHeader = scope.employee.employeeId || scope.employee.id;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 800);
+      const res = await fetch(
+        `/api/employees/${encodeURIComponent(requesterHeader)}/projects/${encodeURIComponent(assigned.projectCode || assigned.id)}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-employee-id': requesterHeader,
+          },
+          body: JSON.stringify(updates),
+          signal: controller.signal,
+        }
+      );
+      clearTimeout(timeoutId);
+
+      if (res.status === 401 || res.status === 403 || res.status === 404) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Not authorized to update this project.');
+      }
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.success && json.data) {
+          const updatedServer: Project = {
+            ...assigned,
+            ...json.data,
+            id: json.data.id || json.data._id || assigned.id,
+          };
+          await this.updateProject(assigned.id, updatedServer);
+          return updatedServer;
+        }
+      }
+    } catch (err: any) {
+      if (err?.message && !err.message.toLowerCase().includes('fetch') && err.name !== 'AbortError') {
+        throw err;
+      }
+    }
+
+    return this.updateProject(assigned.id, updates);
   },
 
   /**
