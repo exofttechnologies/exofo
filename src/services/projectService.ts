@@ -1,16 +1,192 @@
-import { Project, ProjectFeature, ProjectEmployee, ProjectCredential, ProjectInvoice } from '../types';
+import { Project, ProjectFeature, ProjectEmployee, ProjectCredential, ProjectInvoice, Employee } from '../types';
 import { currentProjects, allCompanyEmployees } from '../data/mockData';
+import { employeeService } from './employeeService';
+
+const PROJECTS_STORAGE_KEY = 'exofo_projects';
+
+function loadProjectsStore(): Project[] {
+  try {
+    const saved = localStorage.getItem(PROJECTS_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return [...currentProjects];
+}
 
 // In-memory / persistent mock store (mirrors MongoDB backend schema)
-let projectsStore: Project[] = [...currentProjects];
+let projectsStore: Project[] = loadProjectsStore();
+
+export interface EmployeeProjectsSummary {
+  total: number;
+  inProgress: number;
+  completed: number;
+  notStarted: number;
+  onHold: number;
+}
+
+export interface EmployeeProjectsResponse {
+  employee: Employee;
+  summary: EmployeeProjectsSummary;
+  projects: Project[];
+}
+
+export interface EmployeeProjectFilterParams {
+  search?: string;
+  status?: string;
+}
 
 export const projectService = {
+  /**
+   * Retrieve only projects assigned to the authenticated employee
+   * Enforces employee access control on backend when available, with strict local assignment fallback
+   */
+  async getEmployeeProjects(
+    employeeIdOrEmail: string,
+    filters?: EmployeeProjectFilterParams
+  ): Promise<EmployeeProjectsResponse> {
+    if (!employeeIdOrEmail || !employeeIdOrEmail.trim()) {
+      throw new Error('Authenticated employee ID is required.');
+    }
+
+    // Resolve employee record (supports id, EMP009, or email)
+    let employee = await employeeService.getEmployeeById(employeeIdOrEmail);
+    if (!employee) {
+      const all = await employeeService.getEmployees();
+      employee =
+        all.find(
+          (e) =>
+            e.email.toLowerCase() === employeeIdOrEmail.toLowerCase() ||
+            e.name.toLowerCase() === employeeIdOrEmail.toLowerCase()
+        ) || null;
+    }
+
+    if (!employee) {
+      throw new Error('Authenticated employee profile not found.');
+    }
+
+    if (employee.accountStatus === 'Inactive') {
+      throw new Error('Your employee account is inactive. Please contact your administrator.');
+    }
+
+    // Attempt live backend request with employee authorization header
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 750);
+
+      const query = new URLSearchParams();
+      if (filters?.status && filters.status !== 'All') {
+        query.append('status', filters.status);
+      }
+      if (filters?.search && filters.search.trim()) {
+        query.append('search', filters.search.trim());
+      }
+
+      const qs = query.toString();
+      const url = `/api/employees/${encodeURIComponent(employee.employeeId || employee.id)}/projects${qs ? `?${qs}` : ''}`;
+
+      const res = await fetch(url, {
+        headers: {
+          'x-employee-id': employee.employeeId || employee.id,
+        },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.status === 401 || res.status === 403) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'You are not authorized to access these projects.');
+      }
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.success && json.data) {
+          const normalizedProjects: Project[] = (json.data.projects || []).map((p: any) => ({
+            ...p,
+            id: p.id || p._id || p.projectCode,
+          }));
+          return {
+            employee: { ...employee, ...json.data.employee },
+            summary: json.data.summary,
+            projects: normalizedProjects,
+          };
+        }
+      }
+    } catch (err: any) {
+      // Re-throw explicit authorization rejections
+      if (err?.message && err.message.toLowerCase().includes('authorized')) {
+        throw err;
+      }
+      // Otherwise offline / local fallback below
+    }
+
+    // Local persistence fallback when backend API is unavailable
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    projectsStore = loadProjectsStore();
+
+    const assignedAll = projectsStore.filter(
+      (p) =>
+        p.status !== 'Archived' &&
+        (p.assignedEmployees.some(
+          (e) =>
+            e.id === employee!.id ||
+            (e.email && employee!.email && e.email.toLowerCase() === employee!.email.toLowerCase()) ||
+            e.name.toLowerCase() === employee!.name.toLowerCase()
+        ) ||
+          (employee!.assignedProjects &&
+            employee!.assignedProjects.some(
+              (ap) =>
+                ap.toLowerCase() === p.name.toLowerCase() ||
+                ap === p.id ||
+                ap.toLowerCase() === p.projectCode.toLowerCase()
+            )))
+    );
+
+    const summary: EmployeeProjectsSummary = {
+      total: assignedAll.length,
+      inProgress: assignedAll.filter((p) => p.status === 'In Progress').length,
+      completed: assignedAll.filter((p) => p.status === 'Completed').length,
+      notStarted: assignedAll.filter((p) => p.status === 'Not Started').length,
+      onHold: assignedAll.filter((p) => p.status === 'On Hold').length,
+    };
+
+    let filtered = [...assignedAll];
+
+    if (filters?.status && filters.status !== 'All') {
+      filtered = filtered.filter((p) => p.status === filters.status);
+    }
+
+    if (filters?.search && filters.search.trim()) {
+      const q = filters.search.trim().toLowerCase();
+      filtered = filtered.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.projectCode.toLowerCase().includes(q) ||
+          p.id.toLowerCase().includes(q) ||
+          (p.client?.name && p.client.name.toLowerCase().includes(q)) ||
+          (p.client?.company && p.client.company.toLowerCase().includes(q))
+      );
+    }
+
+    return {
+      employee,
+      summary,
+      projects: filtered,
+    };
+  },
+
   /**
    * Fetch a single project by its ID / ObjectId
    */
   async getProjectById(projectId: string): Promise<Project | null> {
     // Simulate brief network latency (realistic loading states)
     await new Promise((resolve) => setTimeout(resolve, 150));
+    projectsStore = loadProjectsStore();
 
     // Try matching by id (e.g. proj-1) or projectCode (e.g. PRJ001)
     const project = projectsStore.find(

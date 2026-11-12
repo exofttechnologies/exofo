@@ -2,6 +2,23 @@ const express = require('express');
 const router = express.Router();
 const Employee = require('../models/Employee');
 const Task = require('../models/Task');
+const Project = require('../models/Project');
+
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function resolveEmployee(identifier) {
+  const clean = String(identifier || '').trim();
+  const orConditions = [
+    { employeeId: new RegExp(`^${escapeRegex(clean)}$`, 'i') },
+    { email: clean.toLowerCase() },
+  ];
+  if (clean.match(/^[0-9a-fA-F]{24}$/)) {
+    orConditions.push({ _id: clean });
+  }
+  return Employee.findOne({ $or: orConditions });
+}
 
 /**
  * GET /api/employees
@@ -114,6 +131,16 @@ router.get('/:employeeId/dashboard', async (req, res) => {
     const completedCount = assignedTasks.filter((t) => t.status === 'Completed').length;
     const pendingCount = assignedTasks.filter((t) => t.status === 'Pending').length;
 
+    const myProjectsCount = await Project.countDocuments({
+      status: { $ne: 'Archived' },
+      $or: [
+        { 'assignedEmployees.employeeRef': employee._id },
+        { 'assignedEmployees.employeeId': new RegExp(`^${escapeRegex(employee.employeeId)}$`, 'i') },
+        { 'assignedEmployees.email': employee.email.toLowerCase() },
+        { 'assignedEmployees.name': new RegExp(`^${escapeRegex(employee.name)}$`, 'i') },
+      ],
+    });
+
     // Today's tasks (due today or active, up to 5)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -145,13 +172,113 @@ router.get('/:employeeId/dashboard', async (req, res) => {
         },
         counts: {
           myTasks: myTasksCount,
-          myProjects: 2,
+          myProjects: myProjectsCount,
           inProgress: inProgressCount,
           completed: completedCount,
           pending: pendingCount,
         },
         todayTasks,
         assignedTasks,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/**
+ * GET /api/employees/:employeeId/projects
+ * Retrieve only projects assigned to the authenticated employee, with summary counts & filters
+ */
+router.get('/:employeeId/projects', async (req, res) => {
+  try {
+    const { employeeId } = req.params;
+    const { status, search } = req.query;
+    const requesterHeader = req.headers['x-employee-id'];
+
+    const employee = await resolveEmployee(employeeId);
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    if (employee.accountStatus === 'Inactive') {
+      return res.status(403).json({ success: false, message: 'Inactive accounts cannot access employee projects' });
+    }
+
+    // Enforce backend employee authorization when header is provided
+    if (requesterHeader) {
+      const cleanReq = String(requesterHeader).trim().toLowerCase();
+      const matchesEmployee =
+        cleanReq === String(employee._id).toLowerCase() ||
+        cleanReq === String(employee.employeeId).toLowerCase() ||
+        cleanReq === String(employee.email).toLowerCase();
+
+      if (!matchesEmployee) {
+        return res.status(403).json({ success: false, message: "Access denied: cannot view another employee's projects" });
+      }
+    }
+
+    const assignmentConditions = [
+      { 'assignedEmployees.employeeRef': employee._id },
+      { 'assignedEmployees.employeeId': new RegExp(`^${escapeRegex(employee.employeeId)}$`, 'i') },
+      { 'assignedEmployees.email': employee.email.toLowerCase() },
+      { 'assignedEmployees.name': new RegExp(`^${escapeRegex(employee.name)}$`, 'i') },
+    ];
+
+    // Fetch all projects assigned to this employee to compute accurate summary metrics
+    const allAssignedProjects = await Project.find({
+      $and: [
+        { status: { $ne: 'Archived' } },
+        { $or: assignmentConditions },
+      ],
+    }).sort({ updatedAt: -1 });
+
+    const summary = {
+      total: allAssignedProjects.length,
+      inProgress: allAssignedProjects.filter((p) => p.status === 'In Progress').length,
+      completed: allAssignedProjects.filter((p) => p.status === 'Completed').length,
+      notStarted: allAssignedProjects.filter((p) => p.status === 'Not Started').length,
+      onHold: allAssignedProjects.filter((p) => p.status === 'On Hold').length,
+    };
+
+    // Build filtered database query restricted to assigned projects
+    const filteredConditions = [
+      { status: { $ne: 'Archived' } },
+      { $or: assignmentConditions },
+    ];
+
+    if (status && status !== 'All') {
+      filteredConditions.push({ status: String(status) });
+    }
+
+    if (search && String(search).trim()) {
+      const searchRegex = new RegExp(escapeRegex(String(search).trim()), 'i');
+      filteredConditions.push({
+        $or: [
+          { name: searchRegex },
+          { projectCode: searchRegex },
+          { 'client.name': searchRegex },
+          { 'client.company': searchRegex },
+          { description: searchRegex },
+        ],
+      });
+    }
+
+    const projects = await Project.find({ $and: filteredConditions }).sort({ updatedAt: -1 });
+
+    res.json({
+      success: true,
+      data: {
+        employee: {
+          id: employee._id,
+          employeeId: employee.employeeId,
+          name: employee.name,
+          email: employee.email,
+          designation: employee.designation,
+          avatar: employee.avatar || '',
+        },
+        summary,
+        projects,
       },
     });
   } catch (err) {

@@ -46,6 +46,8 @@ import { ChangePasswordPage } from './pages/profile/ChangePasswordPage';
 
 // Employee Module Pages
 import { EmployeeDashboardPage } from './pages/employee/EmployeeDashboardPage';
+import { EmployeeProjectsPage } from './pages/employee/EmployeeProjectsPage';
+import { EmployeeProjectDetailsRoutePage } from './pages/employee/EmployeeProjectDetailsRoutePage';
 import { EmployeeTasksPage } from './pages/employee/EmployeeTasksPage';
 
 /**
@@ -156,7 +158,8 @@ export const App: React.FC = () => {
               </ProtectedRoute>
             } 
           />
-          <Route path="/employee/projects" element={<Navigate to="/projects" replace />} />
+          <Route path="/employee/projects" element={<ProtectedRoute><EmployeeProjectsPage /></ProtectedRoute>} />
+          <Route path="/employee/projects/:projectId" element={<ProtectedRoute><EmployeeProjectDetailsRoutePage /></ProtectedRoute>} />
           <Route path="/employee/tasks" element={<ProtectedRoute><EmployeeTasksPage /></ProtectedRoute>} />
           <Route path="/employee/profile" element={<Navigate to="/profile" replace />} />
 

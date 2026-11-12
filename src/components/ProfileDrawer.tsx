@@ -36,6 +36,8 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
 
   const handleSignOut = () => {
     localStorage.removeItem('exofo_auth');
+    localStorage.removeItem('exofo_employee_id');
+    localStorage.removeItem('exofo_user_role');
     onClose();
     navigate('/login');
   };

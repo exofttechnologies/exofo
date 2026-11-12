@@ -45,9 +45,9 @@ export const EmployeeDashboardPage: React.FC = () => {
       const data = await employeeService.getEmployeeDashboard(targetId);
       setDashboardData(data);
 
-      // Load employees list for switcher
-      const emps = await employeeService.getEmployees();
-      setAvailableEmployees(emps.slice(0, 6));
+      // Load active employees list for switcher (ensure active user like Ahmed is always visible)
+      const emps = await employeeService.getEmployees({ status: 'Active' });
+      setAvailableEmployees(emps);
     } catch (err: any) {
       setError(err.message || 'Failed to load employee dashboard.');
     } finally {

@@ -91,7 +91,7 @@ export interface Project {
   name: string;
   description: string;
   category?: string;
-  status: 'In Progress' | 'Completed' | 'On Hold' | 'Archived';
+  status: 'Not Started' | 'In Progress' | 'Completed' | 'On Hold' | 'Archived';
   priority: 'High' | 'Medium' | 'Low';
   progress: number;
   iconName: 'Monitor' | 'GraduationCap' | 'Smartphone' | 'Database' | 'Layout';

@@ -436,39 +436,33 @@ export const employeeService = {
       // ignore
     }
 
-    // Get projects assigned to this employee
-    const assignedProjects = projectsList.filter(
+    // Get projects assigned to this employee (exclude Archived records, enforce strict employee scope)
+    const finalProjects = projectsList.filter(
       (p) =>
-        p.assignedEmployees.some(
+        p.status !== 'Archived' &&
+        (p.assignedEmployees.some(
           (e) =>
             e.id === employee!.id ||
+            (e.email && employee!.email && e.email.toLowerCase() === employee!.email.toLowerCase()) ||
             e.name.toLowerCase() === employee!.name.toLowerCase()
         ) ||
-        (employee!.assignedProjects &&
-          employee!.assignedProjects.some(
-            (ap) => ap.toLowerCase() === p.name.toLowerCase() || ap === p.id || ap === p.projectCode
-          ))
+          (employee!.assignedProjects &&
+            employee!.assignedProjects.some(
+              (ap) =>
+                ap.toLowerCase() === p.name.toLowerCase() ||
+                ap === p.id ||
+                ap.toLowerCase() === p.projectCode.toLowerCase()
+            )))
     );
 
-    // If Ahmed or Sarah and projects list is empty, supply matching sample projects
-    let finalProjects = assignedProjects;
-    if (finalProjects.length === 0) {
-      finalProjects = projectsList.filter((p) => p.name === 'Dhabhi Cart' || p.name === 'TrackED');
-    }
-
-    // Get tasks assigned to this employee
+    // Get tasks assigned to this employee strictly
     const allTasks = await taskService.getTasks();
-    const assignedTasks = allTasks.filter(
+    const finalTasks = allTasks.filter(
       (t) =>
         t.assignedEmployeeId === employee!.id ||
+        t.assignedEmployeeId?.toLowerCase() === employee!.employeeId?.toLowerCase() ||
         t.assignedEmployeeName?.toLowerCase() === employee!.name.toLowerCase()
     );
-
-    // If employee has no tasks assigned in mock, map tasks for demo/testing
-    let finalTasks = assignedTasks;
-    if (finalTasks.length === 0) {
-      finalTasks = allTasks.slice(0, 4);
-    }
 
     const myTasksCount = finalTasks.length;
     const inProgressCount = finalTasks.filter((t) => t.status === 'In Progress').length;

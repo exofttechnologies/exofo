@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import illustrationImg from '../../assets/illustration.jpg';
+import { employeeService } from '../services/employeeService';
 import { 
   User, 
   Lock, 
@@ -60,54 +61,59 @@ export const LoginPage: React.FC = () => {
     setError(null);
     setIsLoading(true);
 
-    // Simulate login authentication & route according to role
-    setTimeout(() => {
+    // Simulate login authentication & resolve exact employee/admin role dynamically
+    setTimeout(async () => {
       const trimmed = loginId.trim().toLowerCase();
-      localStorage.setItem('exofo_auth', 'true');
-      localStorage.setItem('exofo_user_email', trimmed);
+      const isExplicitAdmin =
+        trimmed === 'admin@exofo.internal' ||
+        trimmed === 'admin' ||
+        trimmed === 'miqdhadh@exofo.internal';
 
-      // Determine role: Explicit employee tab OR employee ID / name entered
+      let matchedEmployee = null;
+      try {
+        const allEmployees = await employeeService.getEmployees();
+        matchedEmployee =
+          allEmployees.find(
+            (emp) =>
+              emp.employeeId.toLowerCase() === trimmed ||
+              emp.id.toLowerCase() === trimmed ||
+              emp.email.toLowerCase() === trimmed ||
+              emp.name.toLowerCase() === trimmed
+          ) || null;
+      } catch {
+        // Fallback silently to direct identifier checks below
+      }
+
       const isEmployeeLogin =
-        roleTab === 'employee' ||
+        Boolean(matchedEmployee) ||
         trimmed.startsWith('emp') ||
-        trimmed.includes('ahmed') ||
-        trimmed.includes('sarah') ||
-        trimmed.includes('alex') ||
-        trimmed.includes('ameen') ||
-        trimmed.includes('mohammed') ||
-        trimmed.includes('david') ||
-        (trimmed !== 'admin@exofo.internal' && trimmed !== 'admin');
+        (roleTab === 'employee' && !isExplicitAdmin);
+
+      localStorage.setItem('exofo_auth', 'true');
+      localStorage.setItem('exofo_user_email', matchedEmployee ? matchedEmployee.email : trimmed);
+      localStorage.setItem('exofo_user_role', isEmployeeLogin ? 'employee' : 'admin');
 
       if (isEmployeeLogin) {
-        if (trimmed.includes('ahmed') || trimmed === 'emp009') {
-          localStorage.setItem('exofo_employee_id', 'emp-ahmed');
-        } else if (trimmed.includes('sarah') || trimmed === 'emp001') {
-          localStorage.setItem('exofo_employee_id', 'emp-1');
-        } else if (trimmed.includes('alex') || trimmed === 'emp002') {
-          localStorage.setItem('exofo_employee_id', 'emp-2');
-        } else if (trimmed.includes('ameen') || trimmed === 'emp010') {
-          localStorage.setItem('exofo_employee_id', 'emp-ameen');
-        } else if (trimmed.includes('mohammed') || trimmed === 'emp011') {
-          localStorage.setItem('exofo_employee_id', 'emp-mohammed');
-        } else if (trimmed.includes('david') || trimmed === 'emp004') {
-          localStorage.setItem('exofo_employee_id', 'emp-4');
+        if (matchedEmployee) {
+          localStorage.setItem('exofo_employee_id', matchedEmployee.id);
         } else {
-          // Default to Ahmed if generic employee ID entered
           localStorage.setItem('exofo_employee_id', 'emp-ahmed');
         }
+      } else {
+        localStorage.removeItem('exofo_employee_id');
       }
 
       setIsLoading(false);
       const destination = isEmployeeLogin ? '/employee/dashboard' : '/';
       setSuccessToast(
         isEmployeeLogin
-          ? 'Signed in as Employee! Redirecting to Workspace...'
+          ? `Signed in as ${matchedEmployee ? matchedEmployee.name : 'Employee'}! Redirecting to Workspace...`
           : 'Signed in as Administrator! Redirecting to Dashboard...'
       );
       setTimeout(() => {
         navigate(destination);
       }, 600);
-    }, 500);
+    }, 450);
   };
 
   return (

@@ -88,7 +88,7 @@ export const EmployeeProjectsCard: React.FC<EmployeeProjectsCardProps> = ({ proj
             projects.map((project) => (
               <div
                 key={project.id}
-                onClick={() => navigate(`/projects/${project.id}/details`)}
+                onClick={() => navigate(`/employee/projects/${project.id}`)}
                 role="button"
                 tabIndex={0}
                 className="group p-4 sm:p-5 rounded-2xl bg-white/80 hover:bg-white border border-slate-200/70 hover:border-blue-200/80 shadow-2xs hover:shadow-md transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4"
