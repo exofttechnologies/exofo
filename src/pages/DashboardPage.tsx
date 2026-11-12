@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { currentProjects } from '../data/mockData';
+import { projectService } from '../services/projectService';
+import { Project } from '../types';
 import { DashboardHeader } from '../components/DashboardHeader';
 import { WelcomeSection } from '../components/WelcomeSection';
 import { LayeredFolderNavigation } from '../components/LayeredFolderNavigation';
@@ -13,6 +14,13 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [recentProjects, setRecentProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    projectService.getAllProjects().then((list) => {
+      setRecentProjects(list.slice(0, 2));
+    }).catch(() => {});
+  }, []);
 
   // Handle Main Card Status Filter Click -> Navigates to /projects with filter
   const handleStatusFilter = (status: string) => {
@@ -58,7 +66,7 @@ export const DashboardPage: React.FC = () => {
             {/* Current Projects Section */}
             <div>
               <CurrentProjects
-                projects={currentProjects.slice(0, 2)}
+                projects={recentProjects}
                 onViewAll={() => navigate('/projects')}
                 onSelectProject={(project) => navigate(`/projects/${project.id}`)}
               />
@@ -92,35 +100,34 @@ export const DashboardPage: React.FC = () => {
                   className="p-3 rounded-2xl bg-blue-50/80 hover:bg-blue-100/80 border border-blue-100 text-left transition-colors"
                 >
                   <p className="text-xs font-bold text-blue-900">All Projects</p>
-                  <p className="text-[11px] font-medium text-blue-600 mt-0.5">5 Active Workspaces</p>
+                  <p className="text-[11px] font-medium text-blue-600 mt-0.5">Active Workspaces</p>
                 </button>
 
                 <button 
                   onClick={() => navigate('/tasks')}
                   className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 text-left transition-colors"
                 >
-                  <p className="text-xs font-bold text-slate-900">Active Tasks</p>
-                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">12 Assigned</p>
+                  <p className="text-xs font-bold text-slate-900">All Tasks</p>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">Assigned & Pipeline</p>
                 </button>
               </div>
             </div>
-
           </div>
 
         </div>
       </div>
 
-      {/* Modals triggered from mobile header */}
-      <NotificationsModal
+      {/* Notifications Modal Drawer */}
+      <NotificationsModal 
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
       />
 
-      <ProfileDrawer
+      {/* Profile Menu Drawer (Accessible via avatar on mobile & header) */}
+      <ProfileDrawer 
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
       />
     </div>
   );
 };
-

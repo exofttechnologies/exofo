@@ -1,34 +1,5 @@
 import { Project, ProjectFeature, ProjectEmployee, ProjectCredential, ProjectInvoice, Employee } from '../types';
-import { currentProjects, allCompanyEmployees } from '../data/mockData';
 import { employeeService } from './employeeService';
-
-const PROJECTS_STORAGE_KEY = 'exofo_projects';
-
-function loadProjectsStore(): Project[] {
-  try {
-    const saved = localStorage.getItem(PROJECTS_STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch {
-    // ignore storage errors
-  }
-  return [...currentProjects];
-}
-
-// In-memory / persistent mock store (mirrors MongoDB backend schema)
-let projectsStore: Project[] = loadProjectsStore();
-
-function saveProjectsStore(list: Project[]) {
-  try {
-    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(list));
-  } catch {
-    // ignore storage errors
-  }
-}
 
 export interface EmployeeProjectsSummary {
   total: number;
@@ -51,351 +22,272 @@ export interface EmployeeProjectFilterParams {
 
 export const projectService = {
   /**
-   * Retrieve only projects assigned to the authenticated employee
-   * Enforces employee access control on backend when available, with strict local assignment fallback
+   * Retrieve only projects assigned to the authenticated employee from MongoDB
    */
   async getEmployeeProjects(
     employeeIdOrEmail: string,
     filters?: EmployeeProjectFilterParams
   ): Promise<EmployeeProjectsResponse> {
-    if (!employeeIdOrEmail || !employeeIdOrEmail.trim()) {
-      throw new Error('Authenticated employee ID is required.');
-    }
+    const employee = await employeeService.resolveEmployeeProfile(employeeIdOrEmail);
 
-    // Resolve employee record (supports id, EMP009, or email)
-    let employee = await employeeService.getEmployeeById(employeeIdOrEmail);
-    if (!employee) {
-      const all = await employeeService.getEmployees();
-      employee =
-        all.find(
-          (e) =>
-            e.email.toLowerCase() === employeeIdOrEmail.toLowerCase() ||
-            e.name.toLowerCase() === employeeIdOrEmail.toLowerCase()
-        ) || null;
-    }
-
-    if (!employee) {
-      throw new Error('Authenticated employee profile not found.');
-    }
-
-    if (employee.accountStatus === 'Inactive') {
-      throw new Error('Your employee account is inactive. Please contact your administrator.');
-    }
-
-    // Attempt live backend request with employee authorization header
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 750);
-
-      const query = new URLSearchParams();
-      if (filters?.status && filters.status !== 'All') {
-        query.append('status', filters.status);
-      }
-      if (filters?.search && filters.search.trim()) {
-        query.append('search', filters.search.trim());
-      }
-
-      const qs = query.toString();
-      const url = `/api/employees/${encodeURIComponent(employee.employeeId || employee.id)}/projects${qs ? `?${qs}` : ''}`;
-
-      const res = await fetch(url, {
-        headers: {
-          'x-employee-id': employee.employeeId || employee.id,
-        },
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-
-      if (res.status === 401 || res.status === 403) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || 'You are not authorized to access these projects.');
-      }
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json && json.success && json.data) {
-          const normalizedProjects: Project[] = (json.data.projects || []).map((p: any) => ({
-            ...p,
-            id: p.id || p._id || p.projectCode,
-          }));
-          return {
-            employee: { ...employee, ...json.data.employee },
-            summary: json.data.summary,
-            projects: normalizedProjects,
-          };
-        }
-      }
-    } catch (err: any) {
-      // Re-throw explicit authorization rejections
-      if (err?.message && err.message.toLowerCase().includes('authorized')) {
-        throw err;
-      }
-      // Otherwise offline / local fallback below
-    }
-
-    // Local persistence fallback when backend API is unavailable
-    await new Promise((resolve) => setTimeout(resolve, 180));
-    projectsStore = loadProjectsStore();
-
-    const assignedAll = projectsStore.filter(
-      (p) =>
-        p.status !== 'Archived' &&
-        (p.assignedEmployees.some(
-          (e) =>
-            e.id === employee!.id ||
-            (e.email && employee!.email && e.email.toLowerCase() === employee!.email.toLowerCase()) ||
-            e.name.toLowerCase() === employee!.name.toLowerCase()
-        ) ||
-          (employee!.assignedProjects &&
-            employee!.assignedProjects.some(
-              (ap) =>
-                ap.toLowerCase() === p.name.toLowerCase() ||
-                ap === p.id ||
-                ap.toLowerCase() === p.projectCode.toLowerCase()
-            )))
-    );
-
-    const summary: EmployeeProjectsSummary = {
-      total: assignedAll.length,
-      inProgress: assignedAll.filter((p) => p.status === 'In Progress').length,
-      completed: assignedAll.filter((p) => p.status === 'Completed').length,
-      notStarted: assignedAll.filter((p) => p.status === 'Not Started').length,
-      onHold: assignedAll.filter((p) => p.status === 'On Hold').length,
-    };
-
-    let filtered = [...assignedAll];
-
+    const query = new URLSearchParams();
     if (filters?.status && filters.status !== 'All') {
-      filtered = filtered.filter((p) => p.status === filters.status);
+      query.append('status', filters.status);
     }
-
     if (filters?.search && filters.search.trim()) {
-      const q = filters.search.trim().toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.projectCode.toLowerCase().includes(q) ||
-          p.id.toLowerCase().includes(q) ||
-          (p.client?.name && p.client.name.toLowerCase().includes(q)) ||
-          (p.client?.company && p.client.company.toLowerCase().includes(q))
-      );
+      query.append('search', filters.search.trim());
     }
 
-    return {
-      employee,
-      summary,
-      projects: filtered,
-    };
+    const qs = query.toString();
+    const url = `/api/employees/${encodeURIComponent(employee.employeeId || employee.id)}/projects${qs ? `?${qs}` : ''}`;
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      throw new Error('Failed to fetch employee projects');
+    }
+
+    const json = await res.json();
+    return json.data;
   },
 
   /**
-   * Fetch a single project by its ID / ObjectId
+   * Fetch all projects from MongoDB
+   */
+  async getAllProjects(filters?: { status?: string; search?: string; priority?: string }): Promise<Project[]> {
+    const query = new URLSearchParams();
+    if (filters?.status && filters.status !== 'All') query.append('status', filters.status);
+    if (filters?.search && filters.search.trim()) query.append('search', filters.search.trim());
+    if (filters?.priority && filters.priority !== 'All') query.append('priority', filters.priority);
+
+    const qs = query.toString();
+    const res = await fetch(`/api/projects${qs ? `?${qs}` : ''}`);
+    if (!res.ok) {
+      throw new Error('Failed to fetch projects');
+    }
+    const json = await res.json();
+    return json.data || [];
+  },
+
+  /**
+   * Fetch a single project by ID or Code from MongoDB
    */
   async getProjectById(projectId: string): Promise<Project | null> {
-    // Simulate brief network latency (realistic loading states)
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    projectsStore = loadProjectsStore();
-
-    // Try matching by id (e.g. proj-1) or projectCode (e.g. PRJ001)
-    const project = projectsStore.find(
-      (p) => p.id === projectId || p.projectCode.toLowerCase() === projectId.toLowerCase()
-    );
-
-    return project ? { ...project } : null;
+    const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error('Failed to fetch project');
+    const json = await res.json();
+    return json.data || null;
   },
 
   /**
-   * Update core project details
+   * Create a new project in MongoDB
+   */
+  async createProject(projectData: Partial<Project>): Promise<Project> {
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(projectData),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to create project');
+    }
+
+    const json = await res.json();
+    return json.data;
+  },
+
+  /**
+   * Update an existing project in MongoDB
    */
   async updateProject(projectId: string, updates: Partial<Project>): Promise<Project> {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    projectsStore = loadProjectsStore();
+    const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
 
-    const index = projectsStore.findIndex(
-      (p) => p.id === projectId || p.projectCode.toLowerCase() === projectId.toLowerCase()
-    );
-
-    if (index === -1) {
-      throw new Error(`Project ${projectId} not found`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to update project');
     }
 
-    const updated = {
-      ...projectsStore[index],
-      ...updates,
-    };
-
-    projectsStore[index] = updated;
-    saveProjectsStore(projectsStore);
-    return { ...updated };
+    const json = await res.json();
+    return json.data;
   },
 
   /**
-   * Employee-scoped project details update (verifies assignment before updating)
+   * Delete a project from MongoDB
+   */
+  async deleteProject(projectId: string): Promise<boolean> {
+    const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  },
+
+  /**
+   * Employee self-service project detail update (supports 2 or 3 arguments)
    */
   async updateEmployeeProjectDetails(
-    employeeIdentifier: string,
-    projectId: string,
-    updates: Pick<
-      Partial<Project>,
-      'name' | 'description' | 'category' | 'status' | 'priority' | 'progress' | 'startDate' | 'expectedCompletionDate' | 'client'
-    >
+    arg1: string,
+    arg2: string | Partial<Project>,
+    arg3?: Partial<Project>
   ): Promise<Project> {
-    const scope = await this.getEmployeeProjects(employeeIdentifier);
-    const assigned = scope.projects.find(
-      (p) => p.id === projectId || p.projectCode.toLowerCase() === projectId.toLowerCase()
-    );
-
-    if (!assigned) {
-      throw new Error('Project not found or not assigned to your employee account.');
-    }
-
-    const requesterHeader = scope.employee.employeeId || scope.employee.id;
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 800);
-      const res = await fetch(
-        `/api/employees/${encodeURIComponent(requesterHeader)}/projects/${encodeURIComponent(assigned.projectCode || assigned.id)}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-employee-id': requesterHeader,
-          },
-          body: JSON.stringify(updates),
-          signal: controller.signal,
-        }
-      );
-      clearTimeout(timeoutId);
-
-      if (res.status === 401 || res.status === 403 || res.status === 404) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || 'Not authorized to update this project.');
-      }
-
-      if (res.ok) {
-        const json = await res.json();
-        if (json && json.success && json.data) {
-          const updatedServer: Project = {
-            ...assigned,
-            ...json.data,
-            id: json.data.id || json.data._id || assigned.id,
-          };
-          await this.updateProject(assigned.id, updatedServer);
-          return updatedServer;
-        }
-      }
-    } catch (err: any) {
-      if (err?.message && !err.message.toLowerCase().includes('fetch') && err.name !== 'AbortError') {
-        throw err;
-      }
-    }
-
-    return this.updateProject(assigned.id, updates);
+    const projectId = typeof arg2 === 'string' ? arg2 : arg1;
+    const updates = typeof arg2 === 'string' ? (arg3 || {}) : (arg2 as Partial<Project>);
+    return this.updateProject(projectId, updates);
   },
 
   /**
-   * Features Management
+   * Add a feature to a project in MongoDB
    */
-  async addFeature(projectId: string, feature: Omit<ProjectFeature, 'id'>): Promise<ProjectFeature> {
-    await new Promise((resolve) => setTimeout(resolve, 200));
+  async addFeature(projectId: string, featureData: Omit<ProjectFeature, 'id'>): Promise<Project> {
     const project = await this.getProjectById(projectId);
     if (!project) throw new Error('Project not found');
 
     const newFeature: ProjectFeature = {
-      ...feature,
+      ...featureData,
       id: `feat-${Date.now()}`,
-      lastUpdated: 'Just now',
+      lastUpdated: new Date().toISOString().split('T')[0],
     };
 
-    const updatedFeatures = [newFeature, ...project.features];
-    await this.updateProject(projectId, { features: updatedFeatures });
-    return newFeature;
-  },
-
-  async deleteFeature(projectId: string, featureId: string): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    const project = await this.getProjectById(projectId);
-    if (!project) throw new Error('Project not found');
-
-    const updatedFeatures = project.features.filter((f) => f.id !== featureId);
-    await this.updateProject(projectId, { features: updatedFeatures });
+    const updatedFeatures = [...(project.features || []), newFeature];
+    return this.updateProject(projectId, { features: updatedFeatures });
   },
 
   /**
-   * Employees Assignment
+   * Update a feature in MongoDB
    */
-  async assignEmployees(projectId: string, employeeIds: string[]): Promise<ProjectEmployee[]> {
-    await new Promise((resolve) => setTimeout(resolve, 200));
+  async updateFeature(projectId: string, featureId: string, updates: Partial<ProjectFeature>): Promise<Project> {
     const project = await this.getProjectById(projectId);
     if (!project) throw new Error('Project not found');
 
-    const newlyAssigned = allCompanyEmployees.filter((emp) => employeeIds.includes(emp.id));
-    
-    // Combine existing and newly assigned without duplicates
-    const existingIds = new Set(project.assignedEmployees.map((e) => e.id));
-    const merged = [
-      ...project.assignedEmployees,
-      ...newlyAssigned.filter((e) => !existingIds.has(e.id)),
-    ];
+    const updatedFeatures = (project.features || []).map((f) =>
+      f.id === featureId
+        ? { ...f, ...updates, lastUpdated: new Date().toISOString().split('T')[0] }
+        : f
+    );
 
-    await this.updateProject(projectId, { assignedEmployees: merged });
-    return merged;
-  },
-
-  async removeEmployee(projectId: string, employeeId: string): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    const project = await this.getProjectById(projectId);
-    if (!project) throw new Error('Project not found');
-
-    const updated = project.assignedEmployees.filter((e) => e.id !== employeeId);
-    await this.updateProject(projectId, { assignedEmployees: updated });
+    return this.updateProject(projectId, { features: updatedFeatures });
   },
 
   /**
-   * Credentials (Password Vault)
+   * Delete a feature from a project in MongoDB
    */
-  async addCredential(projectId: string, cred: Omit<ProjectCredential, 'id'>): Promise<ProjectCredential> {
-    await new Promise((resolve) => setTimeout(resolve, 200));
+  async deleteFeature(projectId: string, featureId: string): Promise<Project> {
+    const project = await this.getProjectById(projectId);
+    if (!project) throw new Error('Project not found');
+
+    const updatedFeatures = (project.features || []).filter((f) => f.id !== featureId);
+    return this.updateProject(projectId, { features: updatedFeatures });
+  },
+
+  /**
+   * Assign employee to project in MongoDB
+   */
+  async assignEmployee(projectId: string, employeeData: Omit<ProjectEmployee, 'id'> & { id?: string }): Promise<Project> {
+    const project = await this.getProjectById(projectId);
+    if (!project) throw new Error('Project not found');
+
+    const newEmp: ProjectEmployee = {
+      ...employeeData,
+      id: employeeData.id || `pe-${Date.now()}`,
+      assignedDate: new Date().toISOString().split('T')[0],
+    };
+
+    const existing = project.assignedEmployees || [];
+    const index = existing.findIndex((e) => e.id === newEmp.id || e.email === newEmp.email);
+
+    let updatedEmployees: ProjectEmployee[];
+    if (index >= 0) {
+      updatedEmployees = existing.map((e, i) => (i === index ? { ...e, ...newEmp } : e));
+    } else {
+      updatedEmployees = [...existing, newEmp];
+    }
+
+    return this.updateProject(projectId, { assignedEmployees: updatedEmployees });
+  },
+
+  /**
+   * Bulk assign employees to project
+   */
+  async assignEmployees(projectId: string, employeeIds: string[]): Promise<Project> {
+    const project = await this.getProjectById(projectId);
+    if (!project) throw new Error('Project not found');
+
+    const allEmps = await employeeService.getEmployees();
+    const assigned: ProjectEmployee[] = employeeIds.map((id) => {
+      const emp = allEmps.find((e) => e.id === id || e.employeeId === id || e.email === id);
+      return {
+        id: emp?.employeeId || id,
+        name: emp?.name || 'Project Member',
+        initials: emp?.initials || 'EM',
+        designation: emp?.designation || 'Specialist',
+        projectRole: emp?.projectRole || emp?.designation || 'Specialist',
+        email: emp?.email || '',
+        phone: emp?.phone || '',
+        currentTaskCount: emp?.currentTaskCount || 0,
+        assignedDate: new Date().toISOString().split('T')[0],
+      };
+    });
+
+    return this.updateProject(projectId, { assignedEmployees: assigned });
+  },
+
+  /**
+   * Remove assigned employee from project
+   */
+  async removeEmployee(projectId: string, employeeId: string): Promise<Project> {
+    const project = await this.getProjectById(projectId);
+    if (!project) throw new Error('Project not found');
+
+    const updated = (project.assignedEmployees || []).filter((e) => e.id !== employeeId && e.email !== employeeId);
+    return this.updateProject(projectId, { assignedEmployees: updated });
+  },
+
+  /**
+   * Add credential to project
+   */
+  async addCredential(projectId: string, credData: Omit<ProjectCredential, 'id'>): Promise<Project> {
     const project = await this.getProjectById(projectId);
     if (!project) throw new Error('Project not found');
 
     const newCred: ProjectCredential = {
-      ...cred,
+      ...credData,
       id: `cred-${Date.now()}`,
-      lastUpdated: 'Today',
+      lastUpdated: new Date().toISOString().split('T')[0],
     };
 
-    const updated = [newCred, ...project.credentials];
-    await this.updateProject(projectId, { credentials: updated });
-    return newCred;
-  },
-
-  async deleteCredential(projectId: string, credId: string): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    const project = await this.getProjectById(projectId);
-    if (!project) throw new Error('Project not found');
-
-    const updated = project.credentials.filter((c) => c.id !== credId);
-    await this.updateProject(projectId, { credentials: updated });
+    const updated = [...(project.credentials || []), newCred];
+    return this.updateProject(projectId, { credentials: updated });
   },
 
   /**
-   * Invoices Management
+   * Delete credential from project
    */
-  async addInvoice(projectId: string, inv: Omit<ProjectInvoice, 'id'>): Promise<ProjectInvoice> {
-    await new Promise((resolve) => setTimeout(resolve, 200));
+  async deleteCredential(projectId: string, credentialId: string): Promise<Project> {
     const project = await this.getProjectById(projectId);
     if (!project) throw new Error('Project not found');
 
-    const newInvoice: ProjectInvoice = {
-      ...inv,
+    const updated = (project.credentials || []).filter((c) => c.id !== credentialId);
+    return this.updateProject(projectId, { credentials: updated });
+  },
+
+  /**
+   * Add invoice to project
+   */
+  async addInvoice(projectId: string, invoiceData: Omit<ProjectInvoice, 'id'>): Promise<Project> {
+    const project = await this.getProjectById(projectId);
+    if (!project) throw new Error('Project not found');
+
+    const newInv: ProjectInvoice = {
+      ...invoiceData,
       id: `inv-${Date.now()}`,
     };
 
-    const updated = [newInvoice, ...project.invoices];
-    await this.updateProject(projectId, { invoices: updated });
-    return newInvoice;
+    const updated = [...(project.invoices || []), newInv];
+    return this.updateProject(projectId, { invoices: updated });
   },
 };
-

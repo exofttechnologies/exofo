@@ -11,7 +11,6 @@ import {
   UserCheck 
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { currentUser } from '../data/mockData';
 
 interface DesktopSidebarProps {
   onOpenNotifications: () => void;
@@ -58,7 +57,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           </div>
           <div>
             <h1 className="text-xl font-extrabold text-slate-900 leading-tight tracking-tight">
-              {currentUser.company}
+              Exofo
             </h1>
             <p className="text-xs font-semibold text-slate-400">
               Company Management

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
   Folder,
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Project } from '../../types';
-import { currentProjects } from '../../data/mockData';
+import { projectService } from '../../services/projectService';
 
 const CATEGORIES = [
   'Web Application',
@@ -32,7 +32,7 @@ export const CreateProjectPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [name, setName] = useState('');
-  const [projectCode, setProjectCode] = useState(`PRJ00${currentProjects.length + 1}`);
+  const [projectCode, setProjectCode] = useState('PRJ003');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Web Application');
   const [priority, setPriority] = useState<'High' | 'Medium' | 'Low'>('High');
@@ -46,7 +46,14 @@ export const CreateProjectPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    projectService.getAllProjects().then((list) => {
+      const nextNum = list.length + 1;
+      setProjectCode(`PRJ${String(nextNum).padStart(3, '0')}`);
+    }).catch(() => {});
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -61,9 +68,8 @@ export const CreateProjectPage: React.FC = () => {
 
     setIsSubmitting(true);
 
-    const newProject: Project = {
-      id: `proj-${Date.now()}`,
-      projectCode: projectCode.trim() || `PRJ00${currentProjects.length + 1}`,
+    const newProject: Partial<Project> = {
+      projectCode: projectCode.trim(),
       name: name.trim(),
       description: description.trim() || 'Custom enterprise solution architecture.',
       category,
@@ -78,7 +84,7 @@ export const CreateProjectPage: React.FC = () => {
         email: clientEmail.trim(),
         company: clientCompany.trim(),
         phone: '+971 50 123 4567',
-        address: 'Dubai, United Arab Emirates',
+        address: 'Enterprise Headquarters',
       },
       assignedEmployees: [],
       features: [],
@@ -89,31 +95,26 @@ export const CreateProjectPage: React.FC = () => {
       milestones: [],
     };
 
-    // Save to localStorage
     try {
-      const saved = localStorage.getItem('exofo_projects');
-      const existing: Project[] = saved ? JSON.parse(saved) : currentProjects;
-      const updated = [newProject, ...existing];
-      localStorage.setItem('exofo_projects', JSON.stringify(updated));
-    } catch (e) {
-      // ignore
+      await projectService.createProject(newProject);
+      setSuccessToast(`Project "${name}" created successfully!`);
+      setTimeout(() => {
+        navigate('/projects');
+      }, 900);
+    } catch (err: any) {
+      setError(err.message || 'Failed to create project.');
+      setIsSubmitting(false);
     }
-
-    setSuccessToast(`Project "${newProject.name}" created successfully!`);
-    setTimeout(() => {
-      navigate('/projects');
-    }, 900);
   };
 
   const priorityColors: Record<string, string> = {
     High: 'bg-rose-50 text-rose-700 border-rose-300 ring-2 ring-rose-500/20',
     Medium: 'bg-amber-50 text-amber-700 border-amber-300 ring-2 ring-amber-500/20',
-    Low: 'bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-blue-500/20',
+    Low: 'bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-500/20',
   };
 
   return (
-    <div className="w-full pb-28 max-w-3xl mx-auto">
-      {/* Success Toast */}
+    <div className="w-full pb-32 max-w-4xl mx-auto">
       {successToast && (
         <div className="fixed top-6 right-6 z-50 animate-fade-in">
           <div className="flex items-center gap-3 px-5 py-3 rounded-2xl bg-emerald-600 text-white shadow-xl shadow-emerald-600/30 font-bold text-xs sm:text-sm">
@@ -123,7 +124,7 @@ export const CreateProjectPage: React.FC = () => {
         </div>
       )}
 
-      {/* Header */}
+      {/* Top Bar */}
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={() => navigate('/projects')}
@@ -134,239 +135,205 @@ export const CreateProjectPage: React.FC = () => {
         </button>
       </div>
 
-      {/* Page Title */}
-      <div className="mb-7">
-        <div className="flex items-center gap-2.5 mb-1.5">
-          <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
-            <Folder className="w-4 h-4 stroke-[2.5]" />
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Create New Project
-          </h1>
-        </div>
-        <p className="text-xs sm:text-sm font-medium text-slate-500">
-          Add a new project to the company management system.
+      <div className="mb-8">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5">
+          <Folder className="w-7 h-7 text-blue-600" />
+          <span>Create New Project</span>
+        </h1>
+        <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
+          Set up a new project space to track features, team assignments, documents, and credentials.
         </p>
       </div>
 
-      {/* Error Banner */}
       {error && (
-        <div className="mb-5 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+        <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs sm:text-sm font-semibold flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* ── 1. Project Info Card ── */}
-        <div className="glass-surface rounded-[26px] p-5 sm:p-7 border border-white/80 shadow-glass space-y-5">
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-            <Layers className="w-4 h-4 text-blue-600" />
-            <span>Project Information</span>
-          </h3>
+        {/* Basic Details */}
+        <div className="glass-surface rounded-[28px] p-6 sm:p-8 space-y-5 border border-white/80">
+          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <Briefcase className="w-5 h-5 text-blue-600" />
+            <span>Project Details</span>
+          </h2>
 
-          {/* Project Name */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Project Name <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Dhabhi Cart E-Commerce Platform"
-              required
-              className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-            />
-          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Project Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Enterprise HR Management Portal"
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                required
+              />
+            </div>
 
-          {/* Project Code + Category */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Project Code</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Project Code
+              </label>
               <input
                 type="text"
                 value={projectCode}
                 onChange={(e) => setProjectCode(e.target.value)}
-                placeholder="e.g. PRJ001"
-                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                placeholder="e.g. PRJ003"
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Category</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-              >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
             </div>
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Project Description <span className="text-slate-400 font-normal">(Optional)</span>
+              Description
             </label>
             <textarea
               rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe the project goals, scope, and key deliverables..."
-              className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-y"
+              placeholder="Provide a comprehensive project overview..."
+              className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
 
-          {/* Priority */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-2">Priority</label>
-            <div className="flex gap-2">
-              {(['High', 'Medium', 'Low'] as const).map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => setPriority(p)}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all text-center ${
-                    priority === p
-                      ? priorityColors[p]
-                      : 'bg-white text-slate-600 border-slate-200/80 hover:bg-slate-50'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Category
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </div>
-          </div>
 
-          {/* Status */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-2">Project Status</label>
-            <div className="flex gap-2">
-              {(['In Progress', 'On Hold', 'Completed'] as const).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setStatus(s)}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all text-center ${
-                    status === s
-                      ? s === 'Completed'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-500/20'
-                        : s === 'On Hold'
-                        ? 'bg-amber-50 text-amber-700 border-amber-300 ring-2 ring-amber-500/20'
-                        : 'bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-blue-500/20'
-                      : 'bg-white text-slate-600 border-slate-200/80 hover:bg-slate-50'
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Priority
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['High', 'Medium', 'Low'] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPriority(p)}
+                    className={`py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                      priority === p ? priorityColors[p] : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ── 2. Client Info Card ── */}
-        <div className="glass-surface rounded-[26px] p-5 sm:p-7 border border-white/80 shadow-glass space-y-5">
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-            <Building className="w-4 h-4 text-blue-600" />
-            <span>Client Information</span>
-          </h3>
+        {/* Client & Timeline */}
+        <div className="glass-surface rounded-[28px] p-6 sm:p-8 space-y-5 border border-white/80">
+          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <Building className="w-5 h-5 text-indigo-600" />
+            <span>Client & Timeline</span>
+          </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                Client Name <span className="text-rose-500">*</span>
+                Client Contact Person <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                placeholder="e.g. Ahmed Al Rashid"
-                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                placeholder="e.g. John Doe"
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                required
               />
             </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Client Company</label>
-              <div className="relative">
-                <Briefcase className="w-3.5 h-3.5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={clientCompany}
-                  onChange={(e) => setClientCompany(e.target.value)}
-                  placeholder="e.g. Dhabhi Technologies LLC"
-                  className="w-full pl-9 pr-4 py-3 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                />
-              </div>
-            </div>
-          </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">Client Email</label>
-            <div className="relative">
-              <Mail className="w-3.5 h-3.5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Client Email
+              </label>
               <input
                 type="email"
                 value={clientEmail}
                 onChange={(e) => setClientEmail(e.target.value)}
-                placeholder="e.g. client@company.com"
-                className="w-full pl-9 pr-4 py-3 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                placeholder="client@company.com"
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Company Name
+              </label>
+              <input
+                type="text"
+                value={clientCompany}
+                onChange={(e) => setClientCompany(e.target.value)}
+                placeholder="e.g. Acme Corp"
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
           </div>
-        </div>
 
-        {/* ── 3. Timeline Card ── */}
-        <div className="glass-surface rounded-[26px] p-5 sm:p-7 border border-white/80 shadow-glass space-y-5">
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-blue-600" />
-            <span>Project Timeline</span>
-          </h3>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Start Date</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Start Date
+              </label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Expected Completion</label>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Target Completion Date
+              </label>
               <input
                 type="date"
                 value={expectedCompletionDate}
                 onChange={(e) => setExpectedCompletionDate(e.target.value)}
-                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm text-slate-800 shadow-2xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 text-xs sm:text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               />
             </div>
           </div>
         </div>
 
-        {/* ── Action Buttons ── */}
-        <div className="flex items-center justify-end gap-3 pt-2">
+        {/* Submit */}
+        <div className="flex items-center justify-end gap-3 pt-4">
           <button
             type="button"
             onClick={() => navigate('/projects')}
-            disabled={isSubmitting}
-            className="px-6 py-3 rounded-full text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 bg-white/80 hover:bg-white border border-slate-200 shadow-2xs transition-all active:scale-95 disabled:opacity-50"
+            className="px-6 py-3 rounded-2xl border border-slate-200 text-slate-700 text-xs sm:text-sm font-bold hover:bg-slate-50 transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting}
-            className="inline-flex items-center gap-2 px-7 py-3 rounded-full bg-gradient-to-r from-[#1261E8] to-[#0645B5] hover:opacity-95 active:scale-95 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-500/25 transition-all disabled:opacity-50"
+            className="px-8 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs sm:text-sm font-bold shadow-lg shadow-blue-500/30 hover:opacity-95 active:scale-95 transition-all disabled:opacity-50"
           >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>{isSubmitting ? 'Creating...' : 'Create Project'}</span>
+            {isSubmitting ? 'Creating Project...' : 'Create Project'}
           </button>
         </div>
       </form>
     </div>
   );
 };
-

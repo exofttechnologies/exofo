@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Users, 
@@ -13,7 +13,8 @@ import {
   Building
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { initialAdminProfile } from '../data/mockData';
+import { adminProfileService } from '../services/adminProfileService';
+import { AdminProfile } from '../types';
 
 interface ProfileDrawerProps {
   isOpen: boolean;
@@ -26,6 +27,14 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
 }) => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [profile, setProfile] = useState<AdminProfile | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      adminProfileService.getProfile().then(setProfile).catch(() => {});
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -46,6 +55,10 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
     navigate('/login');
   };
 
+  const userName = profile?.name || localStorage.getItem('exofo_user_name') || 'Admin';
+  const userEmail = profile?.email || localStorage.getItem('exofo_user_email') || 'admin@exofo.internal';
+  const userInitials = profile?.initials || userName.substring(0, 2).toUpperCase();
+
   const menuSections = [
     {
       heading: 'Employee Management',
@@ -55,7 +68,6 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
           sublabel: 'View, search & manage staff',
           icon: Users,
           path: '/employees',
-          badge: '11 Staff',
         },
         {
           label: 'Add Employee',
@@ -73,7 +85,6 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
           sublabel: 'Completed & archived records',
           icon: Archive,
           path: '/project-history',
-          badge: 'Historical',
         },
       ],
     },
@@ -126,7 +137,7 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
 
           <div className="flex items-center gap-3.5 mb-2">
             <div className="w-14 h-14 rounded-2xl bg-[#0f172a] text-white flex items-center justify-center font-extrabold text-xl ring-4 ring-white/25 shadow-md">
-              {initialAdminProfile.initials}
+              {userInitials}
             </div>
             <div>
               <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-bold mb-1">
@@ -134,10 +145,10 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
                 <span>Super Admin</span>
               </div>
               <h2 className="font-extrabold text-lg leading-tight text-white">
-                {initialAdminProfile.name}
+                {userName}
               </h2>
               <p className="text-xs text-blue-100 font-medium">
-                {initialAdminProfile.email}
+                {userEmail}
               </p>
             </div>
           </div>
@@ -160,38 +171,24 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
                     <button
                       key={item.path}
                       onClick={() => handleNavigate(item.path)}
-                      className={`w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all duration-200 group ${
+                      className={`w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all ${
                         isActive
-                          ? 'bg-blue-50 text-[#1261E8] font-bold shadow-2xs'
-                          : 'hover:bg-slate-50 text-slate-800'
+                          ? 'bg-blue-50 text-blue-700 font-bold'
+                          : 'hover:bg-slate-50 text-slate-700'
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105 ${
-                            isActive
-                              ? 'bg-[#1261E8] text-white shadow-2xs'
-                              : 'bg-slate-100 text-slate-600 group-hover:bg-blue-100 group-hover:text-blue-600'
-                          }`}
-                        >
-                          <Icon className="w-4 h-4 stroke-[2.2]" />
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                          isActive ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          <Icon className="w-4 h-4" />
                         </div>
-                        <div className="truncate">
-                          <p className="text-xs font-bold truncate">{item.label}</p>
-                          <p className="text-[10px] text-slate-400 font-medium truncate">
-                            {item.sublabel}
-                          </p>
+                        <div>
+                          <p className="text-xs font-bold leading-none">{item.label}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">{item.sublabel}</p>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        {item.badge && (
-                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">
-                            {item.badge}
-                          </span>
-                        )}
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400" />
                     </button>
                   );
                 })}
@@ -200,14 +197,14 @@ export const ProfileDrawer: React.FC<ProfileDrawerProps> = ({
           ))}
         </div>
 
-        {/* Footer: Sign Out */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+        {/* Bottom Sign Out */}
+        <div className="p-4 border-t border-slate-100">
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200/60 font-bold text-xs transition-colors active:scale-95 shadow-2xs"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs transition-colors"
           >
             <LogOut className="w-4 h-4" />
-            <span>Sign Out from Admin Panel</span>
+            <span>Sign Out</span>
           </button>
         </div>
       </div>

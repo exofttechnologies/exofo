@@ -17,7 +17,7 @@ import {
   Layout
 } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { currentProjects, projectStats } from '../data/mockData';
+import { projectService } from '../services/projectService';
 import { Project } from '../types';
 import { FloatingAddButton } from '../components/tasks/FloatingAddButton';
 
@@ -26,19 +26,19 @@ export const ProjectsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialStatus = searchParams.get('status') || 'All';
 
-  const [projectsList, setProjectsList] = useState<Project[]>(() => {
-    try {
-      const saved = localStorage.getItem('exofo_projects');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      // ignore
-    }
-    return currentProjects;
-  });
+  const [projectsList, setProjectsList] = useState<Project[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>(initialStatus);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    // Navigate to create page when bottom nav plus button fires this event
+    projectService.getAllProjects().then((data) => {
+      setProjectsList(data);
+      setLoading(false);
+    }).catch(() => {
+      setLoading(false);
+    });
+
     const handleOpenCreate = () => navigate('/projects/create');
     window.addEventListener('open-create-project-modal', handleOpenCreate);
     return () => {
@@ -72,6 +72,11 @@ export const ProjectsPage: React.FC = () => {
     return matchesFilter && matchesSearch;
   });
 
+  const totalActive = projectsList.filter((p) => p.status !== 'Archived').length;
+  const inProgress = projectsList.filter((p) => p.status === 'In Progress').length;
+  const completed = projectsList.filter((p) => p.status === 'Completed').length;
+  const onHold = projectsList.filter((p) => p.status === 'On Hold').length;
+
   const renderIcon = (name: string) => {
     switch (name) {
       case 'Monitor':
@@ -90,9 +95,7 @@ export const ProjectsPage: React.FC = () => {
 
   return (
     <div className="w-full pb-28">
-      {/* ------------------------------------------------------------------
-          Top Navigation Bar & Breadcrumb
-          ------------------------------------------------------------------ */}
+      {/* Top Navigation Bar */}
       <div className="flex items-center justify-between mb-6">
         <button
           onClick={() => navigate('/')}
@@ -102,7 +105,6 @@ export const ProjectsPage: React.FC = () => {
           <span>Back to Dashboard</span>
         </button>
 
-        {/* Action Button: Create Project */}
         <button
           onClick={() => navigate('/projects/create')}
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-sm transition-all hover:scale-105 active:scale-95"
@@ -127,11 +129,8 @@ export const ProjectsPage: React.FC = () => {
         </p>
       </div>
 
-      {/* ------------------------------------------------------------------
-          Overview Statistics Capsules (Glassmorphic)
-          ------------------------------------------------------------------ */}
+      {/* Overview Statistics Capsules */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-8">
-        {/* Total Active */}
         <div 
           onClick={() => handleFilterChange('All')}
           className={`glass-surface rounded-[22px] p-4 cursor-pointer transition-all ${
@@ -142,10 +141,9 @@ export const ProjectsPage: React.FC = () => {
             <span className="text-xs font-semibold text-slate-500">Total Active</span>
             <Folder className="w-4 h-4 text-blue-600" />
           </div>
-          <p className="text-2xl font-black text-slate-900 leading-none">{projectStats.totalActive}</p>
+          <p className="text-2xl font-black text-slate-900 leading-none">{totalActive}</p>
         </div>
 
-        {/* In Progress */}
         <div 
           onClick={() => handleFilterChange('In Progress')}
           className={`glass-surface rounded-[22px] p-4 cursor-pointer transition-all ${
@@ -156,192 +154,129 @@ export const ProjectsPage: React.FC = () => {
             <span className="text-xs font-semibold text-slate-500">In Progress</span>
             <PlayCircle className="w-4 h-4 text-blue-600" />
           </div>
-          <p className="text-2xl font-black text-blue-600 leading-none">{projectStats.inProgress}</p>
+          <p className="text-2xl font-black text-blue-600 leading-none">{inProgress}</p>
         </div>
 
-        {/* Completed */}
         <div 
           onClick={() => handleFilterChange('Completed')}
           className={`glass-surface rounded-[22px] p-4 cursor-pointer transition-all ${
-            activeFilter === 'Completed' ? 'ring-2 ring-emerald-600 bg-white' : 'hover:bg-white/90'
+            activeFilter === 'Completed' ? 'ring-2 ring-blue-600 bg-white' : 'hover:bg-white/90'
           }`}
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-slate-500">Completed</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
-          <p className="text-2xl font-black text-emerald-600 leading-none">{projectStats.completed}</p>
+          <p className="text-2xl font-black text-emerald-600 leading-none">{completed}</p>
         </div>
 
-        {/* On Hold */}
         <div 
           onClick={() => handleFilterChange('On Hold')}
           className={`glass-surface rounded-[22px] p-4 cursor-pointer transition-all ${
-            activeFilter === 'On Hold' ? 'ring-2 ring-amber-600 bg-white' : 'hover:bg-white/90'
+            activeFilter === 'On Hold' ? 'ring-2 ring-blue-600 bg-white' : 'hover:bg-white/90'
           }`}
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-slate-500">On Hold</span>
             <Clock className="w-4 h-4 text-amber-500" />
           </div>
-          <p className="text-2xl font-black text-amber-600 leading-none">{projectStats.onHold}</p>
+          <p className="text-2xl font-black text-amber-500 leading-none">{onHold}</p>
         </div>
       </div>
 
-      {/* ------------------------------------------------------------------
-          Search and Filter Controls
-          ------------------------------------------------------------------ */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-6">
-        {/* Search Input */}
-        <div className="relative flex-1 max-w-md">
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
+        <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search projects by name, keyword or category..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-slate-200/90 text-xs sm:text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
+            placeholder="Search projects by name, code or category..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white/90 border border-slate-200/80 text-xs sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-xs"
           />
-        </div>
-
-        {/* Status Filter Buttons */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
-          {['All', 'In Progress', 'Completed', 'On Hold'].map((status) => (
-            <button
-              key={status}
-              onClick={() => handleFilterChange(status)}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
-                activeFilter === status
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-white/80 border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              {status}
-            </button>
-          ))}
         </div>
       </div>
 
-      {/* ------------------------------------------------------------------
-          Responsive Projects Grid
-          ------------------------------------------------------------------ */}
-      {filteredProjects.length === 0 ? (
+      {/* Projects Grid */}
+      {loading ? (
+        <div className="p-12 text-center text-slate-400 font-semibold text-sm">
+          Loading company projects...
+        </div>
+      ) : filteredProjects.length === 0 ? (
         <div className="glass-surface rounded-[28px] p-12 text-center">
           <Folder className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-800">No Projects Found</h3>
-          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            Try adjusting your search query or selecting a different status filter tab above.
+          <h3 className="text-base font-bold text-slate-800 mb-1">No Projects Found</h3>
+          <p className="text-xs text-slate-400 mb-5">
+            {searchQuery ? 'Try adjusting your search terms.' : 'No projects match the selected filter.'}
           </p>
+          <button
+            onClick={() => navigate('/projects/create')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create New Project</span>
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
-          {filteredProjects.map((project: Project) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredProjects.map((project) => (
             <div
               key={project.id}
               onClick={() => navigate(`/projects/${project.id}`)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  navigate(`/projects/${project.id}`);
-                }
-              }}
-              className="group glass-surface stat-card-hover rounded-[26px] p-5 cursor-pointer select-none flex flex-col justify-between transition-all duration-200 border border-white/80 hover:border-blue-300"
+              className="glass-surface rounded-[26px] p-5 cursor-pointer hover:shadow-md transition-all border border-slate-200/80 flex flex-col justify-between"
             >
               <div>
-                {/* Header Row */}
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-[16px] bg-gradient-to-br from-[#1261E8] to-[#0645B5] flex items-center justify-center flex-shrink-0 shadow-sm transition-transform duration-200 group-hover:scale-105">
-                      {renderIcon(project.iconName)}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
-                          {project.projectCode}
-                        </span>
-                        <h3 className="text-base font-bold text-slate-900 tracking-tight group-hover:text-blue-600 transition-colors">
-                          {project.name}
-                        </h3>
-                      </div>
-                      <p className="text-xs font-medium text-slate-500 line-clamp-1">
-                        {project.description}
-                      </p>
-                    </div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-2xl bg-[#0F172A] flex items-center justify-center">
+                    {renderIcon(project.iconName || 'Layout')}
                   </div>
-
-                  {/* Status Pill */}
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                    project.status === 'Completed'
-                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                      : project.status === 'On Hold'
-                      ? 'bg-amber-50 text-amber-600 border border-amber-100'
-                      : 'bg-[#EBF3FF] text-[#1261E8] border border-[#DCEBFF]'
+                  <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${
+                    project.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' :
+                    project.status === 'In Progress' ? 'bg-blue-50 text-blue-600' :
+                    'bg-amber-50 text-amber-600'
                   }`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${
-                      project.status === 'Completed'
-                        ? 'bg-emerald-600'
-                        : project.status === 'On Hold'
-                        ? 'bg-amber-500'
-                        : 'bg-[#1261E8]'
-                    }`} />
-                    <span>{project.status}</span>
+                    {project.status}
                   </span>
                 </div>
 
-                {/* Meta details: Timeline & Team */}
-                <div className="flex items-center gap-4 text-xs font-semibold text-slate-500 mb-5 pt-1">
-                  <span className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    {project.startDate} to {project.expectedCompletionDate}
+                <div className="mb-2">
+                  <span className="text-[11px] font-bold text-blue-600 tracking-wider uppercase">
+                    {project.projectCode}
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-slate-400" />
-                    {project.assignedEmployees.length} Engineers
-                  </span>
+                  <h3 className="text-base font-extrabold text-slate-900 line-clamp-1">
+                    {project.name}
+                  </h3>
                 </div>
+
+                <p className="text-xs text-slate-500 line-clamp-2 mb-4 leading-relaxed">
+                  {project.description}
+                </p>
               </div>
 
-              {/* Bottom Progress Row */}
-              <div className="pt-3 border-t border-slate-100">
-                <div className="flex items-center justify-between text-xs font-medium mb-1.5">
-                  <span className="text-slate-400 font-medium">Progress</span>
-                  <span className="text-slate-900 font-bold">{project.progress}%</span>
-                </div>
-                <div className="w-full h-2 bg-[#E6EFFD] rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-700 ease-out ${
-                      project.status === 'Completed' ? 'bg-emerald-600' : 'bg-[#1261E8]'
-                    }`}
-                    style={{ width: `${project.progress}%` }}
-                  />
-                </div>
-
-                {/* Team Avatars & Manage Project Link */}
-                <div className="flex items-center justify-between mt-4">
-                  {/* Team Avatars */}
-                  <div className="flex -space-x-1.5 overflow-hidden">
-                    {project.assignedEmployees.slice(0, 3).map((m, i) => (
-                      <div
-                        key={i}
-                        className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-slate-800 text-white font-bold text-[9px] flex items-center justify-center"
-                        title={m.name}
-                      >
-                        {m.initials}
-                      </div>
-                    ))}
-                    {project.assignedEmployees.length > 3 && (
-                      <div className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-slate-200 text-slate-600 font-bold text-[9px] flex items-center justify-center">
-                        +{project.assignedEmployees.length - 3}
-                      </div>
-                    )}
+              <div>
+                <div className="mb-4">
+                  <div className="flex items-center justify-between text-xs font-semibold mb-1">
+                    <span className="text-slate-400">Progress</span>
+                    <span className="text-slate-900">{project.progress}%</span>
                   </div>
+                  <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div 
+                      className="h-full bg-blue-600 rounded-full transition-all"
+                      style={{ width: `${project.progress}%` }}
+                    />
+                  </div>
+                </div>
 
-                  <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 group-hover:translate-x-1 transition-transform">
-                    <span>Manage Project</span>
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-medium text-slate-400">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5" />
+                    <span>{(project.assignedEmployees || []).length} Members</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-blue-600 font-bold group-hover:translate-x-1 transition-transform">
+                    <span>Manage</span>
                     <ArrowRight className="w-3.5 h-3.5" />
-                  </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -349,11 +284,7 @@ export const ProjectsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Floating Add Project Button (Same plus icon as Tasks page) */}
-      <FloatingAddButton 
-        label="Create New Project" 
-        onClick={() => navigate('/projects/create')} 
-      />
+      <FloatingAddButton onClick={() => navigate('/projects/create')} />
     </div>
   );
 };

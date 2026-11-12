@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Folder, 
   ArrowRight, 
@@ -7,7 +7,7 @@ import {
   Clock 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { projectStats } from '../data/mockData';
+import { projectService } from '../services/projectService';
 
 interface MainProjectCardProps {
   onFilterStatus?: (status: string) => void;
@@ -17,6 +17,27 @@ export const MainProjectCard: React.FC<MainProjectCardProps> = ({
   onFilterStatus,
 }) => {
   const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    totalActive: 0,
+    inProgress: 0,
+    completed: 0,
+    onHold: 0,
+  });
+
+  useEffect(() => {
+    projectService.getAllProjects().then((projects) => {
+      const inProgress = projects.filter((p) => p.status === 'In Progress').length;
+      const completed = projects.filter((p) => p.status === 'Completed').length;
+      const onHold = projects.filter((p) => p.status === 'On Hold').length;
+      const totalActive = projects.filter((p) => p.status !== 'Archived').length;
+      setStats({
+        totalActive,
+        inProgress,
+        completed,
+        onHold,
+      });
+    }).catch(() => {});
+  }, []);
 
   const handleCardClick = () => {
     navigate('/projects');
@@ -65,7 +86,7 @@ export const MainProjectCard: React.FC<MainProjectCardProps> = ({
       {/* Main Metric Stat Row */}
       <div className="relative z-10 flex items-baseline gap-3 mb-5">
         <span className="text-[40px] sm:text-[44px] font-black tracking-tight leading-none text-white drop-shadow-sm">
-          {projectStats.totalActive}
+          {stats.totalActive}
         </span>
         <span className="text-[14px] sm:text-[15px] font-semibold text-white/95 tracking-normal">
           Active Projects
@@ -81,7 +102,7 @@ export const MainProjectCard: React.FC<MainProjectCardProps> = ({
           className="glass-blue-pill px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold text-white transition-all duration-150 active:scale-95"
         >
           <PlayCircle className="w-3.5 h-3.5 text-white/90 stroke-[2.2]" />
-          <span>{projectStats.inProgress} In Progress</span>
+          <span>{stats.inProgress} In Progress</span>
         </button>
 
         {/* Completed Pill */}
@@ -91,7 +112,7 @@ export const MainProjectCard: React.FC<MainProjectCardProps> = ({
           className="glass-blue-pill px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold text-white transition-all duration-150 active:scale-95"
         >
           <CheckCircle2 className="w-3.5 h-3.5 text-white/90 stroke-[2.2]" />
-          <span>{projectStats.completed} Completed</span>
+          <span>{stats.completed} Completed</span>
         </button>
 
         {/* On Hold Pill */}
@@ -101,7 +122,7 @@ export const MainProjectCard: React.FC<MainProjectCardProps> = ({
           className="glass-blue-pill px-3 py-1.5 rounded-full flex items-center gap-1.5 text-xs font-semibold text-white transition-all duration-150 active:scale-95"
         >
           <Clock className="w-3.5 h-3.5 text-white/90 stroke-[2.2]" />
-          <span>{projectStats.onHold} On Hold</span>
+          <span>{stats.onHold} On Hold</span>
         </button>
       </div>
     </div>

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Search } from 'lucide-react';
 import { Project } from '../types';
-import { currentProjects } from '../data/mockData';
+import { projectService } from '../services/projectService';
 import { ProjectSummaryCard } from './ProjectSummaryCard';
 
 interface AllProjectsModalProps {
@@ -19,10 +19,17 @@ export const AllProjectsModal: React.FC<AllProjectsModalProps> = ({
 }) => {
   const [filter, setFilter] = useState<string>(initialFilter);
   const [search, setSearch] = useState<string>('');
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      projectService.getAllProjects().then(setProjects).catch(() => {});
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const filteredProjects = currentProjects.filter((p) => {
+  const filteredProjects = projects.filter((p) => {
     const matchesFilter = filter === 'All' || p.status === filter;
     const matchesSearch = 
       p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -40,7 +47,7 @@ export const AllProjectsModal: React.FC<AllProjectsModalProps> = ({
         <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-[#F8FAFF]">
           <div>
             <h3 className="font-extrabold text-slate-900 text-lg">Active Company Projects</h3>
-            <p className="text-xs text-slate-500 mt-0.5">5 Total projects under management</p>
+            <p className="text-xs text-slate-500 mt-0.5">{projects.length} Total projects under management</p>
           </div>
 
           <button
@@ -51,53 +58,48 @@ export const AllProjectsModal: React.FC<AllProjectsModalProps> = ({
           </button>
         </div>
 
-        {/* Filter Bar */}
-        <div className="p-4 border-b border-slate-100 space-y-3 bg-white">
-          {/* Search Box */}
-          <div className="relative">
+        {/* Search */}
+        <div className="p-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search projects by name or domain..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+              placeholder="Search projects by keyword..."
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
             />
           </div>
 
-          {/* Status Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            {['All', 'In Progress', 'Completed', 'On Hold'].map((status) => (
+          <div className="flex items-center gap-1">
+            {['All', 'In Progress', 'Completed'].map((s) => (
               <button
-                key={status}
-                onClick={() => setFilter(status)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
-                  filter === status
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                key={s}
+                onClick={() => setFilter(s)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  filter === s
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
-                {status}
+                {s}
               </button>
             ))}
           </div>
         </div>
 
         {/* Project List */}
-        <div className="p-4 space-y-3 overflow-y-auto no-scrollbar flex-1 bg-[#F9FBFF]">
+        <div className="p-5 overflow-y-auto space-y-3.5 flex-1">
           {filteredProjects.length === 0 ? (
-            <div className="text-center py-10 text-slate-400 text-sm">
-              No projects match the selected filter.
+            <div className="text-center py-10 text-xs text-slate-400 font-semibold">
+              No matching projects found.
             </div>
           ) : (
-            filteredProjects.map((proj) => (
+            filteredProjects.map((p) => (
               <ProjectSummaryCard
-                key={proj.id}
-                project={proj}
-                onClick={(p) => {
-                  onClose();
-                  onSelectProject(p);
-                }}
+                key={p.id}
+                project={p}
+                onClick={() => onSelectProject(p)}
               />
             ))
           )}
@@ -106,4 +108,3 @@ export const AllProjectsModal: React.FC<AllProjectsModalProps> = ({
     </div>
   );
 };
-

@@ -27,7 +27,6 @@ import { AdminProfile, Employee, Project } from '../types';
 import { adminProfileService } from '../services/adminProfileService';
 import { employeeService } from '../services/employeeService';
 import { projectHistoryService } from '../services/projectHistoryService';
-import { currentProjects } from '../data/mockData';
 
 export const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
@@ -298,7 +297,7 @@ export const ProfilePage: React.FC = () => {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-blue-600">
-                {currentProjects.length} Active
+                View All
               </span>
               <ChevronRight className="w-5 h-5 text-slate-400 stroke-[1.8]" />
             </div>

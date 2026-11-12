@@ -17,7 +17,6 @@ import { Project } from '../../types';
 import { projectHistoryService } from '../../services/projectHistoryService';
 import { NotificationsModal } from '../../components/NotificationsModal';
 import { ProfileDrawer } from '../../components/ProfileDrawer';
-import { initialAdminProfile } from '../../data/mockData';
 
 export const ProjectHistoryPage: React.FC = () => {
   const navigate = useNavigate();
@@ -108,7 +107,7 @@ export const ProjectHistoryPage: React.FC = () => {
             aria-label="Profile Menu"
             className="w-10 h-10 rounded-full bg-[#0f172a] text-white flex items-center justify-center font-bold text-xs ring-2 ring-white shadow-2xs hover:scale-105 active:scale-95 transition-all"
           >
-            {initialAdminProfile.initials}
+            {(localStorage.getItem('exofo_user_name') || 'AD').substring(0, 2).toUpperCase()}
           </button>
         </div>
       </header>

@@ -5,7 +5,6 @@ import { DesktopSidebar } from './DesktopSidebar';
 import { BottomNavigation } from './BottomNavigation';
 import { NotificationsModal } from './NotificationsModal';
 import { ProfileDrawer } from './ProfileDrawer';
-import { currentUser } from '../data/mockData';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -77,9 +76,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className="w-10 h-10 rounded-full bg-white border border-slate-200/80 flex items-center justify-center text-slate-600 hover:text-blue-600 hover:scale-105 active:scale-95 transition-all relative shadow-xs"
               >
                 <Bell className="w-4 h-4" />
-                {currentUser.unreadNotifications > 0 && (
-                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white" />
-                )}
+                <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white" />
               </button>
 
               <div 

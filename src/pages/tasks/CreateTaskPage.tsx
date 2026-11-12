@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, ArrowLeft } from 'lucide-react';
 import { taskService } from '../../services/taskService';
-import { allCompanyEmployees, currentProjects } from '../../data/mockData';
+import { employeeService } from '../../services/employeeService';
+import { projectService } from '../../services/projectService';
 import { TaskForm } from '../../components/tasks/TaskForm';
 import { NotificationsModal } from '../../components/NotificationsModal';
 import { ProfileDrawer } from '../../components/ProfileDrawer';
@@ -13,8 +14,16 @@ export const CreateTaskPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  useEffect(() => {
+    employeeService.getEmployees().then(setEmployees).catch(() => {});
+    projectService.getAllProjects().then(setProjects).catch(() => {});
+  }, []);
 
   const handleCreateTask = async (formData: any) => {
     try {
@@ -23,7 +32,6 @@ export const CreateTaskPage: React.FC = () => {
       
       setSuccessToast(`Task "${created.taskName}" (${created.taskId}) created successfully!`);
 
-      // Wait a moment so user sees toast, then navigate to /tasks
       setTimeout(() => {
         navigate('/tasks');
       }, 900);
@@ -58,8 +66,8 @@ export const CreateTaskPage: React.FC = () => {
 
       {/* Form Container */}
       <TaskForm
-        employees={allCompanyEmployees}
-        projects={currentProjects}
+        employees={employees}
+        projects={projects}
         onSubmit={handleCreateTask}
         isSubmitting={isSubmitting}
         submitButtonText="Create Task"
@@ -78,4 +86,3 @@ export const CreateTaskPage: React.FC = () => {
     </div>
   );
 };
-

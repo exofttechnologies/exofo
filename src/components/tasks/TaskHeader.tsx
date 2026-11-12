@@ -1,7 +1,6 @@
 import React from 'react';
 import { Bell, ArrowLeft, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { currentUser } from '../../data/mockData';
 import { TaskSearch } from './TaskSearch';
 
 interface TaskHeaderProps {
@@ -30,6 +29,14 @@ export const TaskHeader: React.FC<TaskHeaderProps> = ({
   actionButton,
 }) => {
   const navigate = useNavigate();
+  const userName = localStorage.getItem('exofo_user_name') || 'Administrator';
+  const initials = userName
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'AD';
 
   return (
     <header className="mb-6 space-y-4">
@@ -63,9 +70,7 @@ export const TaskHeader: React.FC<TaskHeaderProps> = ({
             className="relative w-10 h-10 rounded-full bg-white border border-slate-200/80 shadow-2xs flex items-center justify-center text-slate-700 hover:text-blue-600 hover:scale-105 active:scale-95 transition-all"
           >
             <Bell className="w-4 h-4 stroke-[2]" />
-            {currentUser.unreadNotifications > 0 && (
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#1261E8] ring-2 ring-white" />
-            )}
+            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#1261E8] ring-2 ring-white" />
           </button>
 
           <button
@@ -74,7 +79,7 @@ export const TaskHeader: React.FC<TaskHeaderProps> = ({
             aria-label="Admin Profile"
             className="w-10 h-10 rounded-full bg-[#0f172a] text-white flex items-center justify-center font-bold text-xs ring-2 ring-white/80 shadow-2xs hover:scale-105 active:scale-95 transition-all"
           >
-            {currentUser.initials}
+            {initials}
           </button>
         </div>
       </div>
@@ -100,4 +105,3 @@ export const TaskHeader: React.FC<TaskHeaderProps> = ({
     </header>
   );
 };
-

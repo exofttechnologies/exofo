@@ -18,9 +18,10 @@ import {
   Sparkles,
   ArrowRight
 } from 'lucide-react';
-import { Task, TaskStatus, TaskPriority, ProjectEmployee } from '../../types';
+import { Task, TaskStatus, TaskPriority, ProjectEmployee, Project } from '../../types';
 import { taskService } from '../../services/taskService';
-import { allCompanyEmployees, currentProjects } from '../../data/mockData';
+import { employeeService } from '../../services/employeeService';
+import { projectService } from '../../services/projectService';
 import { TaskStatusBadge } from '../../components/tasks/TaskStatusBadge';
 import { TaskPriorityBadge } from '../../components/tasks/TaskPriorityBadge';
 import { TaskProgressBar } from '../../components/tasks/TaskProgressBar';
@@ -42,6 +43,13 @@ export const TaskDetailPage: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isReassigning, setIsReassigning] = useState(false);
 
+  const [availableEmployees, setAvailableEmployees] = useState<any[]>([]);
+  const [projectObj, setProjectObj] = useState<Project | null>(null);
+
+  useEffect(() => {
+    employeeService.getEmployees().then(setAvailableEmployees).catch(() => {});
+  }, []);
+
   const loadTask = async () => {
     if (!taskId) return;
     try {
@@ -52,6 +60,9 @@ export const TaskDetailPage: React.FC = () => {
         setError(`Task with ID "${taskId}" could not be found.`);
       } else {
         setTask(data);
+        if (data.projectId || data.projectCode) {
+          projectService.getProjectById(data.projectId || data.projectCode || '').then(setProjectObj).catch(() => {});
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Failed to load task details.');
@@ -162,12 +173,7 @@ export const TaskDetailPage: React.FC = () => {
     );
   }
 
-  const isOverdue = taskService.isOverdue(task.dueDate, task.status);
-
-  // Find related project details if present
-  const projectObj = currentProjects.find(
-    (p) => p.id === task.projectId || p.projectCode === task.projectCode
-  );
+  const isOverdue = Boolean(task.dueDate && task.status !== 'Completed' && new Date(task.dueDate) < new Date());
 
   return (
     <div className="w-full pb-32 space-y-6">
@@ -352,7 +358,7 @@ export const TaskDetailPage: React.FC = () => {
             {isReassigning ? (
               <div className="p-3 rounded-2xl bg-white border border-slate-200/80 space-y-2">
                 <EmployeeDropdown
-                  employees={allCompanyEmployees}
+                  employees={availableEmployees}
                   selectedEmployeeId={task.assignedEmployeeId}
                   onSelect={handleReassign}
                   label="Select new assignee:"

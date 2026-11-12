@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import { Task, ProjectEmployee, Project } from '../types';
 import { taskService } from '../services/taskService';
-import { allCompanyEmployees, currentProjects } from '../data/mockData';
+import { projectService } from '../services/projectService';
+import { employeeService } from '../services/employeeService';
 import { TaskHeader } from '../components/tasks/TaskHeader';
 import { TaskSummaryCard } from '../components/tasks/TaskSummaryCard';
 import { TaskFilters } from '../components/tasks/TaskFilters';
@@ -32,9 +33,17 @@ export const TasksPage: React.FC = () => {
   const [dueDateFilter, setDueDateFilter] = useState<string>('All');
   const [isFiltersExpanded, setIsFiltersExpanded] = useState<boolean>(false);
 
+  const [availableEmployees, setAvailableEmployees] = useState<any[]>([]);
+  const [availableProjects, setAvailableProjects] = useState<Project[]>([]);
+
   // Modals
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  useEffect(() => {
+    employeeService.getEmployees().then(setAvailableEmployees).catch(() => {});
+    projectService.getAllProjects().then(setAvailableProjects).catch(() => {});
+  }, []);
 
   // Load Tasks
   const loadTasks = async () => {
@@ -43,9 +52,8 @@ export const TasksPage: React.FC = () => {
       const data = await taskService.getTasks({
         status: statusFilter,
         priority: priorityFilter,
-        employee: employeeFilter,
-        project: projectFilter,
-        dueDate: dueDateFilter,
+        assignedEmployeeId: employeeFilter !== 'All' ? employeeFilter : undefined,
+        projectId: projectFilter !== 'All' ? projectFilter : undefined,
         search: search,
       });
       setTasks(data);
@@ -60,7 +68,7 @@ export const TasksPage: React.FC = () => {
     loadTasks();
   }, [statusFilter, priorityFilter, employeeFilter, projectFilter, dueDateFilter, search]);
 
-  // Overall counts for Summary Cards (based on full dataset)
+  // Overall counts for Summary Cards
   const [summaryData, setSummaryData] = useState({
     totalRunning: 0,
     pending: 0,
@@ -97,9 +105,7 @@ export const TasksPage: React.FC = () => {
 
   return (
     <div className="w-full pb-32">
-      {/* ------------------------------------------------------------------
-          A. Header Section (Page Title, Search, Notifications, Avatar)
-          ------------------------------------------------------------------ */}
+      {/* Header Section */}
       <TaskHeader
         title="Tasks"
         subtitle="Manage and monitor your ongoing tasks."
@@ -119,18 +125,14 @@ export const TasksPage: React.FC = () => {
         }
       />
 
-      {/* ------------------------------------------------------------------
-          B. Task Summary Cards (4 Cards)
-          ------------------------------------------------------------------ */}
+      {/* Task Summary Cards */}
       <TaskSummaryCard
         data={summaryData}
         activeFilter={statusFilter}
         onFilterSelect={(status) => setStatusFilter(status)}
       />
 
-      {/* ------------------------------------------------------------------
-          C. Task Filters Bar & Tabs
-          ------------------------------------------------------------------ */}
+      {/* Task Filters Bar */}
       <TaskFilters
         statusFilter={statusFilter}
         onStatusChange={setStatusFilter}
@@ -142,74 +144,50 @@ export const TasksPage: React.FC = () => {
         onProjectChange={setProjectFilter}
         dueDateFilter={dueDateFilter}
         onDueDateChange={setDueDateFilter}
-        employees={allCompanyEmployees}
-        projects={currentProjects}
+        employees={availableEmployees}
+        projects={availableProjects}
         onResetFilters={handleResetFilters}
         isExpanded={isFiltersExpanded}
         onToggleExpanded={() => setIsFiltersExpanded(!isFiltersExpanded)}
         totalTasksCount={tasks.length}
       />
 
-      {/* ------------------------------------------------------------------
-          D. Task Cards Responsive Grid
-             - Mobile: 1-col
-             - Tablet: 2-col
-             - Desktop: 3-col
-          ------------------------------------------------------------------ */}
+      {/* Task Cards Responsive Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="glass-surface rounded-[24px] p-5 h-48" />
-          ))}
+        <div className="p-12 text-center text-slate-400 font-semibold text-sm">
+          Loading tasks from MongoDB...
         </div>
-      ) : tasks.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-5">
+      ) : tasks.length === 0 ? (
+        <div className="glass-surface rounded-[26px] p-12 text-center border border-dashed border-slate-200">
+          <Inbox className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-800 mb-1">No Tasks Found</h3>
+          <p className="text-xs text-slate-400 mb-5">
+            {search ? 'Try adjusting your search filters.' : 'There are no tasks matching your selection.'}
+          </p>
+          <button
+            onClick={() => navigate('/tasks/create')}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-xs"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create First Task</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {tasks.map((task) => (
             <TaskCard key={task.id || task.taskId} task={task} />
           ))}
         </div>
-      ) : (
-        /* Empty State */
-        <div className="glass-surface rounded-[28px] p-8 sm:p-12 text-center max-w-md mx-auto my-6 border border-white/80">
-          <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto mb-4 border border-blue-100">
-            <Inbox className="w-7 h-7 stroke-[1.8]" />
-          </div>
-          <h3 className="text-base font-bold text-slate-900 mb-1">
-            No Tasks Found
-          </h3>
-          <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-            No tasks match your current filter selection or search query.
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <button
-              onClick={handleResetFilters}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white text-slate-700 border border-slate-200 text-xs font-bold hover:bg-slate-50 transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset Filters</span>
-            </button>
-            <button
-              onClick={() => navigate('/tasks/create')}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#1261E8] text-white text-xs font-bold hover:bg-blue-700 transition-colors shadow-xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Create Task</span>
-            </button>
-          </div>
-        </div>
       )}
 
-      {/* ------------------------------------------------------------------
-          E. Floating Add Task Button (Mobile & Desktop)
-          ------------------------------------------------------------------ */}
-      <FloatingAddButton label="Create New Task" />
+      <FloatingAddButton onClick={() => navigate('/tasks/create')} />
 
-      {/* Modals */}
-      <NotificationsModal
+      <NotificationsModal 
         isOpen={isNotificationsOpen}
         onClose={() => setIsNotificationsOpen(false)}
       />
-      <ProfileDrawer
+
+      <ProfileDrawer 
         isOpen={isProfileOpen}
         onClose={() => setIsProfileOpen(false)}
       />

@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { Task } from '../../types';
 import { taskService } from '../../services/taskService';
-import { allCompanyEmployees, currentProjects } from '../../data/mockData';
+import { employeeService } from '../../services/employeeService';
+import { projectService } from '../../services/projectService';
 import { TaskForm } from '../../components/tasks/TaskForm';
 import { TaskHeader } from '../../components/tasks/TaskHeader';
 import { NotificationsModal } from '../../components/NotificationsModal';
@@ -19,10 +20,16 @@ export const EditTaskPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
+  const [employees, setEmployees] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
+    employeeService.getEmployees().then(setEmployees).catch(() => {});
+    projectService.getAllProjects().then(setProjects).catch(() => {});
+
     async function fetchTask() {
       if (!taskId) return;
       try {
@@ -58,34 +65,6 @@ export const EditTaskPage: React.FC = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="w-full pb-32 max-w-4xl mx-auto animate-pulse space-y-6">
-        <div className="h-10 w-40 bg-white/70 rounded-full" />
-        <div className="h-64 bg-white/70 rounded-[26px]" />
-        <div className="h-44 bg-white/70 rounded-[26px]" />
-      </div>
-    );
-  }
-
-  if (error || !task) {
-    return (
-      <div className="w-full pb-32 pt-8 text-center">
-        <div className="glass-surface rounded-[28px] p-8 max-w-md mx-auto border border-white/80">
-          <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-2" />
-          <h2 className="text-lg font-bold text-slate-800">Task Not Found</h2>
-          <p className="text-xs text-slate-500 mb-4">{error}</p>
-          <button
-            onClick={() => navigate('/tasks')}
-            className="px-4 py-2 rounded-full bg-blue-600 text-white text-xs font-bold"
-          >
-            Back to Tasks
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="w-full pb-32 max-w-4xl mx-auto">
       {/* Toast Notification */}
@@ -101,24 +80,40 @@ export const EditTaskPage: React.FC = () => {
       {/* Header */}
       <TaskHeader
         title="Edit Task"
-        subtitle={`Update task information and assignment for ${task.taskId}.`}
+        subtitle={`Updating task ${taskId}`}
         showBack={true}
-        backUrl={`/tasks/${task.taskId}`}
+        backUrl={taskId ? `/tasks/${taskId}` : '/tasks'}
         showSearch={false}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
         onOpenProfile={() => setIsProfileOpen(true)}
       />
 
-      {/* Form Container */}
-      <TaskForm
-        initialData={task}
-        employees={allCompanyEmployees}
-        projects={currentProjects}
-        onSubmit={handleUpdateTask}
-        isSubmitting={isSubmitting}
-        submitButtonText="Save Changes"
-        cancelUrl={`/tasks/${task.taskId}`}
-      />
+      {loading ? (
+        <div className="glass-surface rounded-[24px] p-8 text-center text-slate-400 font-semibold text-xs sm:text-sm">
+          Loading task details from database...
+        </div>
+      ) : error ? (
+        <div className="glass-surface rounded-[24px] p-8 text-center text-rose-500 font-bold text-xs sm:text-sm flex flex-col items-center gap-2">
+          <AlertCircle className="w-6 h-6" />
+          <span>{error}</span>
+          <button
+            onClick={() => navigate('/tasks')}
+            className="mt-3 px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold"
+          >
+            Back to Tasks
+          </button>
+        </div>
+      ) : task ? (
+        <TaskForm
+          initialData={task}
+          employees={employees}
+          projects={projects}
+          onSubmit={handleUpdateTask}
+          isSubmitting={isSubmitting}
+          submitButtonText="Save Changes"
+          cancelUrl={`/tasks/${task.taskId}`}
+        />
+      ) : null}
 
       {/* Modals */}
       <NotificationsModal
@@ -132,4 +127,3 @@ export const EditTaskPage: React.FC = () => {
     </div>
   );
 };
-
