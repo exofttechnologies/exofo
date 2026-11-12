@@ -209,10 +209,151 @@ router.get('/:idOrEmpId/projects', async (req, res) => {
   }
 });
 
+// GET /api/employees/:idOrEmpId/profile - profile & work summary
+router.get('/:idOrEmpId/profile', async (req, res) => {
+  try {
+    const { idOrEmpId } = req.params;
+    let employee = null;
+
+    if (idOrEmpId.match(/^[0-9a-fA-F]{24}$/)) {
+      employee = await Employee.findById(idOrEmpId);
+    }
+    if (!employee) {
+      employee = await Employee.findOne({
+        $or: [
+          { employeeId: idOrEmpId.toUpperCase() },
+          { email: idOrEmpId.toLowerCase() },
+          { name: new RegExp(`^${idOrEmpId}$`, 'i') },
+        ],
+      });
+    }
+
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    const empId = employee.employeeId;
+    const empMongoId = employee._id.toString();
+
+    const assignedProjectsCount = await Project.countDocuments({
+      status: { $ne: 'Archived' },
+      $or: [
+        { 'assignedEmployees.id': empId },
+        { 'assignedEmployees.id': empMongoId },
+        { 'assignedEmployees.name': new RegExp(`^${employee.name}$`, 'i') },
+      ],
+    });
+
+    const myTasks = await Task.find({
+      $or: [
+        { assignedEmployeeId: empId },
+        { assignedEmployeeId: empMongoId },
+        { assignedEmployeeName: new RegExp(`^${employee.name}$`, 'i') },
+      ],
+    });
+
+    const activeTasks = myTasks.filter(t => t.status === 'Pending' || t.status === 'In Progress').length;
+    const completedTasks = myTasks.filter(t => t.status === 'Completed').length;
+
+    res.json({
+      success: true,
+      data: {
+        employee: employee.toProfile(),
+        workSummary: {
+          assignedProjects: assignedProjectsCount,
+          activeTasks,
+          completedTasks,
+        },
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PUT /api/employees/:idOrEmpId/profile - self-service profile update
+router.put('/:idOrEmpId/profile', async (req, res) => {
+  try {
+    const { idOrEmpId } = req.params;
+    const { name, phone, address, avatar } = req.body;
+
+    let employee = null;
+    if (idOrEmpId.match(/^[0-9a-fA-F]{24}$/)) {
+      employee = await Employee.findById(idOrEmpId);
+    }
+    if (!employee) {
+      employee = await Employee.findOne({
+        $or: [
+          { employeeId: idOrEmpId.toUpperCase() },
+          { email: idOrEmpId.toLowerCase() },
+          { name: new RegExp(`^${idOrEmpId}$`, 'i') },
+        ],
+      });
+    }
+
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    if (name) employee.name = name;
+    if (phone !== undefined) employee.phone = phone;
+    if (address !== undefined) employee.address = address;
+    if (avatar !== undefined) employee.avatar = avatar;
+
+    await employee.save();
+    res.json({ success: true, data: employee.toProfile() });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/employees/:idOrEmpId/change-password
+router.post('/:idOrEmpId/change-password', async (req, res) => {
+  try {
+    const { idOrEmpId } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    let employee = null;
+    if (idOrEmpId.match(/^[0-9a-fA-F]{24}$/)) {
+      employee = await Employee.findById(idOrEmpId).select('+password');
+    }
+    if (!employee) {
+      employee = await Employee.findOne({
+        $or: [
+          { employeeId: idOrEmpId.toUpperCase() },
+          { email: idOrEmpId.toLowerCase() },
+          { name: new RegExp(`^${idOrEmpId}$`, 'i') },
+        ],
+      }).select('+password');
+    }
+
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    const isMatch = await employee.comparePassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Current password does not match.' });
+    }
+
+    employee.password = newPassword;
+    await employee.save();
+
+    res.json({ success: true, message: 'Password updated successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // POST /api/employees - create employee
 router.post('/', async (req, res) => {
   try {
-    const emp = await Employee.create(req.body);
+    let employeeId = req.body.employeeId;
+    if (!employeeId) {
+      const count = await Employee.countDocuments();
+      employeeId = `EMP${String(count + 1).padStart(3, '0')}`;
+    }
+    const emp = await Employee.create({ ...req.body, employeeId });
     res.status(201).json({ success: true, data: emp.toProfile() });
   } catch (err) {
     res.status(400).json({ success: false, message: err.message });
@@ -246,5 +387,29 @@ router.put('/:idOrEmpId', async (req, res) => {
   }
 });
 
-module.exports = router;
+// DELETE /api/employees/:idOrEmpId - delete employee
+router.delete('/:idOrEmpId', async (req, res) => {
+  try {
+    const { idOrEmpId } = req.params;
+    let employee = null;
 
+    if (idOrEmpId.match(/^[0-9a-fA-F]{24}$/)) {
+      employee = await Employee.findByIdAndDelete(idOrEmpId);
+    }
+    if (!employee) {
+      employee = await Employee.findOneAndDelete({
+        $or: [{ employeeId: idOrEmpId.toUpperCase() }, { email: idOrEmpId.toLowerCase() }],
+      });
+    }
+
+    if (!employee) {
+      return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    res.json({ success: true, message: 'Employee deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;

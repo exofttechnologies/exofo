@@ -6,7 +6,7 @@ const Employee = require('../models/Employee');
 // GET /api/tasks - fetch all tasks or filtered by employee
 router.get('/', async (req, res) => {
   try {
-    const { assignedEmployeeId, status, priority, search } = req.query;
+    const { assignedEmployeeId, status, priority, search, projectId, projectCode } = req.query;
     const query = {};
 
     if (assignedEmployeeId) {
@@ -14,6 +14,15 @@ router.get('/', async (req, res) => {
         { assignedEmployeeId: assignedEmployeeId },
         { assignedEmployeeName: new RegExp(assignedEmployeeId, 'i') },
       ];
+    }
+    if (projectId) {
+      query.$or = [
+        { projectId: projectId },
+        { projectCode: projectId },
+      ];
+    }
+    if (projectCode) {
+      query.projectCode = projectCode;
     }
     if (status && status !== 'All') {
       query.status = status;
@@ -91,5 +100,24 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+// DELETE /api/tasks/:id - delete task
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    let task = null;
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      task = await Task.findByIdAndDelete(id);
+    }
+    if (!task) {
+      task = await Task.findOneAndDelete({ taskId: id });
+    }
+    if (!task) {
+      return res.status(404).json({ success: false, message: 'Task not found' });
+    }
+    res.json({ success: true, message: 'Task deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
+module.exports = router;

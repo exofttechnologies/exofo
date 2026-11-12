@@ -2,11 +2,17 @@ const express = require('express');
 const router = express.Router();
 const Project = require('../models/Project');
 
-// GET /api/projects - list all projects
+// GET /api/projects - list all projects (supports optional history query param)
 router.get('/', async (req, res) => {
   try {
-    const { status, priority, search } = req.query;
+    const { status, priority, search, isHistorical } = req.query;
     const query = {};
+
+    if (isHistorical === 'true') {
+      query.status = { $in: ['Completed', 'Archived'] };
+    } else if (isHistorical === 'false') {
+      query.status = { $nin: ['Completed', 'Archived'] };
+    }
 
     if (status && status !== 'All') {
       query.status = status;
@@ -76,7 +82,11 @@ router.put('/:id', async (req, res) => {
       project = await Project.findByIdAndUpdate(id, req.body, { new: true, runValidators: true });
     }
     if (!project) {
-      project = await Project.findOneAndUpdate({ projectCode: id }, req.body, { new: true, runValidators: true });
+      project = await Project.findOneAndUpdate(
+        { $or: [{ projectCode: id }, { name: new RegExp(`^${id}$`, 'i') }] },
+        req.body,
+        { new: true, runValidators: true }
+      );
     }
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
@@ -87,5 +97,26 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+// DELETE /api/projects/:id - delete project
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    let project = null;
+    if (id.match(/^[0-9a-fA-F]{24}$/)) {
+      project = await Project.findByIdAndDelete(id);
+    }
+    if (!project) {
+      project = await Project.findOneAndDelete({
+        $or: [{ projectCode: id }, { name: new RegExp(`^${id}$`, 'i') }],
+      });
+    }
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+    res.json({ success: true, message: 'Project deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
+module.exports = router;
