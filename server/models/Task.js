@@ -77,6 +77,27 @@ const TaskSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    requirements: {
+      type: [String],
+      default: [],
+    },
+    attachments: {
+      type: [
+        {
+          id: { type: String },
+          name: { type: String },
+          size: { type: String },
+          fileType: { type: String },
+          uploadedAt: { type: String },
+          uploadedBy: { type: String },
+        },
+      ],
+      default: [],
+    },
+    assignedEmployeeCode: {
+      type: String,
+      default: '',
+    },
     createdBy: {
       type: String,
       default: 'Admin',

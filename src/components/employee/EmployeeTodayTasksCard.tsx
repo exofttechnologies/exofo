@@ -84,7 +84,7 @@ export const EmployeeTodayTasksCard: React.FC<EmployeeTodayTasksCardProps> = ({ 
               return (
                 <div
                   key={task.id}
-                  onClick={() => navigate(`/tasks/${task.id || task.taskId}`)}
+                  onClick={() => navigate(`/employee/tasks/${task.id || task.taskId}`)}
                   role="button"
                   tabIndex={0}
                   className={`group p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${

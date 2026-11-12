@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const taskRoutes = require('./routes/taskRoutes');
 const employeeRoutes = require('./routes/employeeRoutes');
+const employeeTaskRoutes = require('./routes/employeeTaskRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const historyRoutes = require('./routes/historyRoutes');
 
@@ -26,6 +27,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/tasks', taskRoutes);
 app.use('/api/employees', employeeRoutes);
+app.use('/api/employee/tasks', employeeTaskRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/project-history', historyRoutes);
 

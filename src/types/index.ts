@@ -143,11 +143,22 @@ export interface TaskActivity {
   timestamp: string;
 }
 
+export interface TaskAttachment {
+  id: string;
+  name: string;
+  size: string;
+  fileType: string;
+  uploadedAt: string;
+  uploadedBy?: string;
+}
+
 export interface Task {
   id: string;
   taskId: string; // e.g. TSK001
   taskName: string;
   description: string;
+  requirements?: string[];
+  attachments?: TaskAttachment[];
   assignedEmployeeId?: string;
   assignedEmployeeName?: string;
   assignedEmployeeAvatar?: string;

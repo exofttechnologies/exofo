@@ -50,6 +50,8 @@ import { EmployeeProjectsPage } from './pages/employee/EmployeeProjectsPage';
 import { EmployeeProjectDetailsRoutePage } from './pages/employee/EmployeeProjectDetailsRoutePage';
 import { EmployeeProjectDetailsEditPage } from './pages/employee/EmployeeProjectDetailsEditPage';
 import { EmployeeTasksPage } from './pages/employee/EmployeeTasksPage';
+import { EmployeeTaskDetailPage } from './pages/employee/EmployeeTaskDetailPage';
+import { EmployeeTaskUpdatePage } from './pages/employee/EmployeeTaskUpdatePage';
 import { EmployeeProfilePage } from './pages/employee/EmployeeProfilePage';
 import { EmployeeProfileEditPage } from './pages/employee/EmployeeProfileEditPage';
 import { EmployeeChangePasswordPage } from './pages/employee/EmployeeChangePasswordPage';
@@ -166,6 +168,8 @@ export const App: React.FC = () => {
           <Route path="/employee/projects/:projectId" element={<ProtectedRoute><EmployeeProjectDetailsRoutePage /></ProtectedRoute>} />
           <Route path="/employee/projects/:projectId/details" element={<ProtectedRoute><EmployeeProjectDetailsEditPage /></ProtectedRoute>} />
           <Route path="/employee/tasks" element={<ProtectedRoute><EmployeeTasksPage /></ProtectedRoute>} />
+          <Route path="/employee/tasks/:taskId" element={<ProtectedRoute><EmployeeTaskDetailPage /></ProtectedRoute>} />
+          <Route path="/employee/tasks/:taskId/update" element={<ProtectedRoute><EmployeeTaskUpdatePage /></ProtectedRoute>} />
           <Route path="/employee/profile" element={<ProtectedRoute><EmployeeProfilePage /></ProtectedRoute>} />
           <Route path="/employee/profile/edit" element={<ProtectedRoute><EmployeeProfileEditPage /></ProtectedRoute>} />
           <Route path="/employee/profile/change-password" element={<ProtectedRoute><EmployeeChangePasswordPage /></ProtectedRoute>} />

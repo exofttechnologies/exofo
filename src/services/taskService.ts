@@ -1,7 +1,102 @@
-import { Task, TaskActivity, TaskPriority, TaskStatus } from '../types';
-import { initialTasks } from '../data/mockData';
+import { Employee, Project, Task, TaskActivity, TaskAttachment, TaskPriority, TaskStatus } from '../types';
+import { currentProjects, initialEmployees, initialTasks } from '../data/mockData';
 
 const STORAGE_KEY = 'exofo_tasks_data';
+const EMPLOYEES_STORAGE_KEY = 'exofo_employees_data';
+const PROJECTS_STORAGE_KEY = 'exofo_projects';
+
+function resolveEmployeeRecord(identifier: string): Employee | null {
+  const clean = String(identifier || '').trim().toLowerCase();
+  if (!clean) return null;
+  let employeesList: Employee[] = [...initialEmployees];
+  try {
+    const raw = localStorage.getItem(EMPLOYEES_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        employeesList = parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return (
+    employeesList.find(
+      (e) =>
+        e.id.toLowerCase() === clean ||
+        e.employeeId.toLowerCase() === clean ||
+        e.email.toLowerCase() === clean ||
+        e.name.toLowerCase() === clean
+    ) || null
+  );
+}
+
+function loadProjectsList(): Project[] {
+  try {
+    const raw = localStorage.getItem(PROJECTS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return [...currentProjects];
+}
+
+function doesTaskBelongToEmployee(task: Task, employee: Employee): boolean {
+  if (!task || !employee) return false;
+  if (
+    task.assignedEmployeeId &&
+    (task.assignedEmployeeId.toLowerCase() === employee.id.toLowerCase() ||
+      task.assignedEmployeeId.toLowerCase() === employee.employeeId.toLowerCase())
+  ) {
+    return true;
+  }
+  if (
+    task.assignedEmployeeName &&
+    task.assignedEmployeeName.trim().toLowerCase() === employee.name.trim().toLowerCase()
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export interface EmployeeTaskFilterParams {
+  status?: string;
+  priority?: string;
+  project?: string;
+  dueDate?: string; // 'All' | 'overdue' | 'YYYY-MM-DD'
+  search?: string;
+}
+
+export interface EmployeeTasksSummary {
+  total: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+}
+
+export interface EmployeeTasksResponse {
+  employee: Employee;
+  summary: EmployeeTasksSummary;
+  tasks: Task[];
+}
+
+export interface EmployeeTaskDetailResponse {
+  employee: Employee;
+  task: Task;
+  relatedProject: Project | null;
+}
+
+export interface EmployeeTaskProgressPayload {
+  status: TaskStatus;
+  progress: number;
+  comment?: string;
+  attachment?: TaskAttachment;
+}
 
 // Helper to load tasks from localStorage or initialize with initialTasks
 function loadTasksFromStorage(): Task[] {
@@ -470,6 +565,402 @@ export const taskService = {
   async getTaskActivity(idOrTaskId: string): Promise<TaskActivity[]> {
     const task = await this.getTaskById(idOrTaskId);
     return task?.activityHistory || [];
+  },
+
+  /**
+   * Employee Module: Fetch only tasks assigned to the authenticated employee
+   */
+  async getEmployeeTasks(
+    employeeIdentifier: string,
+    filters?: EmployeeTaskFilterParams
+  ): Promise<EmployeeTasksResponse> {
+    const employee = resolveEmployeeRecord(employeeIdentifier);
+    if (!employee) {
+      throw new Error('Authenticated employee account not found.');
+    }
+    if (employee.accountStatus === 'Inactive') {
+      throw new Error('Your employee account is inactive.');
+    }
+
+    const requesterHeader = employee.employeeId || employee.id;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 750);
+      const qs = new URLSearchParams();
+
+      if (filters?.status && filters.status !== 'All') qs.append('status', filters.status);
+      if (filters?.priority && filters.priority !== 'All') qs.append('priority', filters.priority);
+      if (filters?.project && filters.project !== 'All') qs.append('project', filters.project);
+      if (filters?.dueDate && filters.dueDate !== 'All') qs.append('dueDate', filters.dueDate);
+      if (filters?.search && filters.search.trim()) qs.append('search', filters.search.trim());
+
+      const url = `/api/employee/tasks${qs.toString() ? `?${qs.toString()}` : ''}`;
+      const res = await fetch(url, {
+        headers: { 'x-employee-id': requesterHeader },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.status === 401 || res.status === 403) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Not authorized to view tasks.');
+      }
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.success && json.data) {
+          return {
+            employee: { ...employee, ...json.data.employee },
+            summary: json.data.summary,
+            tasks: json.data.tasks || [],
+          };
+        }
+      }
+    } catch (err: any) {
+      if (err?.message && (err.message.toLowerCase().includes('authorized') || err.message.toLowerCase().includes('inactive'))) {
+        throw err;
+      }
+    }
+
+    // Local persistence fallback
+    await new Promise((r) => setTimeout(r, 150));
+    inMemoryTasks = loadTasksFromStorage();
+
+    const allAssigned = inMemoryTasks.filter((t) => doesTaskBelongToEmployee(t, employee));
+
+    const summary: EmployeeTasksSummary = {
+      total: allAssigned.length,
+      pending: allAssigned.filter((t) => t.status === 'Pending').length,
+      inProgress: allAssigned.filter((t) => t.status === 'In Progress').length,
+      completed: allAssigned.filter((t) => t.status === 'Completed').length,
+    };
+
+    let filtered = [...allAssigned];
+
+    if (filters?.status && filters.status !== 'All') {
+      filtered = filtered.filter((t) => t.status === filters.status);
+    }
+
+    if (filters?.priority && filters.priority !== 'All') {
+      filtered = filtered.filter((t) => t.priority === filters.priority);
+    }
+
+    if (filters?.project && filters.project !== 'All') {
+      if (filters.project === 'independent') {
+        filtered = filtered.filter((t) => t.isIndependent || !t.projectName);
+      } else {
+        const projQuery = filters.project.toLowerCase();
+        filtered = filtered.filter(
+          (t) =>
+            t.projectId === filters.project ||
+            t.projectCode?.toLowerCase() === projQuery ||
+            t.projectName?.toLowerCase() === projQuery
+        );
+      }
+    }
+
+    if (filters?.dueDate && filters.dueDate !== 'All') {
+      if (filters.dueDate === 'overdue') {
+        filtered = filtered.filter((t) => this.isOverdue(t.dueDate, t.status));
+      } else {
+        filtered = filtered.filter((t) => t.dueDate === filters.dueDate);
+      }
+    }
+
+    if (filters?.search && filters.search.trim()) {
+      const q = filters.search.trim().toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.taskName.toLowerCase().includes(q) ||
+          t.taskId.toLowerCase().includes(q) ||
+          (t.projectName && t.projectName.toLowerCase().includes(q))
+      );
+    }
+
+    return {
+      employee,
+      summary,
+      tasks: filtered,
+    };
+  },
+
+  /**
+   * Employee Module: Fetch single task details + related project (with ownership verification)
+   */
+  async getEmployeeTaskById(
+    employeeIdentifier: string,
+    idOrTaskId: string
+  ): Promise<EmployeeTaskDetailResponse> {
+    const employee = resolveEmployeeRecord(employeeIdentifier);
+    if (!employee) {
+      throw new Error('Authenticated employee account not found.');
+    }
+    const requesterHeader = employee.employeeId || employee.id;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 750);
+      const res = await fetch(`/api/employee/tasks/${encodeURIComponent(idOrTaskId)}`, {
+        headers: { 'x-employee-id': requesterHeader },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.status === 401 || res.status === 403 || res.status === 404) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Task unavailable or not assigned to your account.');
+      }
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.success && json.data && json.data.task) {
+          return {
+            employee,
+            task: json.data.task,
+            relatedProject: json.data.relatedProject || null,
+          };
+        }
+      }
+    } catch (err: any) {
+      if (err?.message && !err.message.toLowerCase().includes('fetch') && err.name !== 'AbortError') {
+        throw err;
+      }
+    }
+
+    await new Promise((r) => setTimeout(r, 120));
+    inMemoryTasks = loadTasksFromStorage();
+
+    const task = inMemoryTasks.find(
+      (t) => t.id === idOrTaskId || t.taskId.toLowerCase() === idOrTaskId.toLowerCase()
+    );
+
+    if (!task) {
+      throw new Error('Task not found.');
+    }
+
+    if (!doesTaskBelongToEmployee(task, employee)) {
+      throw new Error('Access denied: this task is not assigned to your employee account.');
+    }
+
+    const projects = loadProjectsList();
+    const relatedProject =
+      !task.isIndependent && (task.projectId || task.projectCode || task.projectName)
+        ? projects.find(
+            (p) =>
+              p.id === task.projectId ||
+              p.projectCode.toLowerCase() === (task.projectCode || '').toLowerCase() ||
+              p.name.toLowerCase() === (task.projectName || '').toLowerCase()
+          ) || null
+        : null;
+
+    return {
+      employee,
+      task: { ...task },
+      relatedProject,
+    };
+  },
+
+  /**
+   * Employee Module: Fetch task activity timeline
+   */
+  async getEmployeeTaskActivity(
+    employeeIdentifier: string,
+    idOrTaskId: string
+  ): Promise<TaskActivity[]> {
+    const employee = resolveEmployeeRecord(employeeIdentifier);
+    if (!employee) {
+      throw new Error('Authenticated employee account not found.');
+    }
+    const requesterHeader = employee.employeeId || employee.id;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 700);
+      const res = await fetch(`/api/employee/tasks/${encodeURIComponent(idOrTaskId)}/activity`, {
+        headers: { 'x-employee-id': requesterHeader },
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.success && Array.isArray(json.data)) {
+          return json.data;
+        }
+      }
+    } catch {
+      // Fallback below
+    }
+
+    const detail = await this.getEmployeeTaskById(employeeIdentifier, idOrTaskId);
+    return detail.task.activityHistory || [];
+  },
+
+  /**
+   * Employee Module: Validate and update status, progress %, comment, and optional attachment
+   */
+  async updateEmployeeTaskProgress(
+    employeeIdentifier: string,
+    idOrTaskId: string,
+    payload: EmployeeTaskProgressPayload
+  ): Promise<Task> {
+    const { status, progress, comment, attachment } = payload;
+    const numericProgress = Math.round(Number(progress));
+
+    if (!['Pending', 'In Progress', 'Completed'].includes(status)) {
+      throw new Error('Please choose a valid task status.');
+    }
+    if (Number.isNaN(numericProgress) || numericProgress < 0 || numericProgress > 100) {
+      throw new Error('Progress percentage must be between 0% and 100%.');
+    }
+    if (status === 'Pending' && numericProgress !== 0) {
+      throw new Error('Pending tasks must have 0% progress.');
+    }
+    if (status === 'In Progress' && (numericProgress < 1 || numericProgress > 99)) {
+      throw new Error('In Progress tasks must have progress between 1% and 99%.');
+    }
+    if (status === 'Completed' && numericProgress !== 100) {
+      throw new Error('Completed tasks must have 100% progress.');
+    }
+
+    const employee = resolveEmployeeRecord(employeeIdentifier);
+    if (!employee) {
+      throw new Error('Authenticated employee account not found.');
+    }
+    const requesterHeader = employee.employeeId || employee.id;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 800);
+      const res = await fetch(`/api/employee/tasks/${encodeURIComponent(idOrTaskId)}/progress`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-employee-id': requesterHeader,
+        },
+        body: JSON.stringify({
+          status,
+          progress: numericProgress,
+          comment: comment?.trim() || '',
+          attachment,
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (res.status === 400 || res.status === 401 || res.status === 403 || res.status === 404) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Unable to update task progress.');
+      }
+
+      if (res.ok) {
+        const json = await res.json();
+        if (json && json.success && json.data) {
+          inMemoryTasks = loadTasksFromStorage();
+          const idx = inMemoryTasks.findIndex(
+            (t) => t.id === idOrTaskId || t.taskId.toLowerCase() === idOrTaskId.toLowerCase()
+          );
+          if (idx !== -1) {
+            inMemoryTasks[idx] = json.data;
+            saveTasksToStorage(inMemoryTasks);
+          }
+          return json.data;
+        }
+      }
+    } catch (err: any) {
+      if (err?.message && !err.message.toLowerCase().includes('fetch') && err.name !== 'AbortError') {
+        throw err;
+      }
+    }
+
+    // Local persistence fallback
+    await new Promise((r) => setTimeout(r, 150));
+    inMemoryTasks = loadTasksFromStorage();
+
+    const index = inMemoryTasks.findIndex(
+      (t) => t.id === idOrTaskId || t.taskId.toLowerCase() === idOrTaskId.toLowerCase()
+    );
+    if (index === -1) {
+      throw new Error('Task not found.');
+    }
+
+    const current = inMemoryTasks[index];
+    if (!doesTaskBelongToEmployee(current, employee)) {
+      throw new Error('Access denied: you cannot update tasks assigned to other employees.');
+    }
+
+    const nowHuman = new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    const newActivities: TaskActivity[] = [...(current.activityHistory || [])];
+    if (status !== current.status) {
+      newActivities.push({
+        id: `act-${Date.now()}-status`,
+        taskId: current.taskId,
+        description: `Status changed from ${current.status} to ${status}`,
+        type: status === 'Completed' ? 'completed' : 'status_changed',
+        updatedBy: employee.name,
+        timestamp: nowHuman,
+      });
+    }
+
+    if (numericProgress !== current.progress) {
+      newActivities.push({
+        id: `act-${Date.now()}-prog`,
+        taskId: current.taskId,
+        description: `Progress updated from ${current.progress}% to ${numericProgress}%`,
+        type: 'progress_updated',
+        updatedBy: employee.name,
+        timestamp: nowHuman,
+      });
+    }
+
+    const trimmedComment = comment?.trim() || '';
+    if (trimmedComment) {
+      newActivities.push({
+        id: `act-${Date.now()}-note`,
+        taskId: current.taskId,
+        description: `Work update: ${trimmedComment}`,
+        type: 'edited',
+        updatedBy: employee.name,
+        timestamp: nowHuman,
+      });
+    }
+
+    const updatedAttachments = attachment
+      ? [...(current.attachments || []), attachment]
+      : current.attachments;
+
+    if (attachment) {
+      newActivities.push({
+        id: `act-${Date.now()}-att`,
+        taskId: current.taskId,
+        description: `Uploaded attachment: ${attachment.name}`,
+        type: 'edited',
+        updatedBy: employee.name,
+        timestamp: nowHuman,
+      });
+    }
+
+    const updatedTask: Task = {
+      ...current,
+      status,
+      progress: numericProgress,
+      progressNotes: trimmedComment || current.progressNotes,
+      attachments: updatedAttachments,
+      updatedAt: new Date().toISOString(),
+      activityHistory: newActivities,
+    };
+
+    inMemoryTasks[index] = updatedTask;
+    saveTasksToStorage(inMemoryTasks);
+    return { ...updatedTask };
   },
 };
 
