@@ -62,9 +62,12 @@ export const EmployeeProfilePage: React.FC = () => {
 
   const handleConfirmLogout = () => {
     localStorage.removeItem('exofo_auth');
+    localStorage.removeItem('exofo_token');
     localStorage.removeItem('exofo_employee_id');
+    localStorage.removeItem('exofo_employee_code');
     localStorage.removeItem('exofo_user_role');
     localStorage.removeItem('exofo_user_email');
+    localStorage.removeItem('exofo_user_name');
     setIsLogoutConfirmOpen(false);
     navigate('/login');
   };

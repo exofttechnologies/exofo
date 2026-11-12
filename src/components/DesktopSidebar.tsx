@@ -127,11 +127,11 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             className="flex items-center gap-2.5 cursor-pointer"
           >
             <div className="w-9 h-9 rounded-full bg-[#0f172a] text-white flex items-center justify-center font-bold text-xs ring-2 ring-white shadow-xs">
-              {currentUser.initials}
+              {(localStorage.getItem('exofo_user_name') || 'AD').substring(0, 2).toUpperCase()}
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-900 leading-tight">{currentUser.name}</p>
-              <p className="text-[10.5px] font-medium text-slate-400">{currentUser.role}</p>
+              <p className="text-xs font-bold text-slate-900 leading-tight">{localStorage.getItem('exofo_user_name') || 'Administrator'}</p>
+              <p className="text-[10.5px] font-medium text-slate-400 capitalize">{localStorage.getItem('exofo_user_role') || 'Admin'}</p>
             </div>
           </div>
 
@@ -141,9 +141,7 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
             className="w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-blue-600 transition-colors relative"
           >
             <Bell className="w-3.5 h-3.5" />
-            {currentUser.unreadNotifications > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-600 ring-1 ring-white" />
-            )}
+            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-600 ring-1 ring-white" />
           </button>
         </div>
       </div>

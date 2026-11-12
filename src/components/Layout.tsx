@@ -89,11 +89,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 className="flex items-center gap-2.5 p-1.5 pr-3 rounded-full bg-white border border-slate-200/80 hover:bg-slate-50 cursor-pointer shadow-xs transition-colors"
               >
                 <div className="w-8 h-8 rounded-full bg-[#0f172a] text-white flex items-center justify-center font-bold text-xs ring-2 ring-white">
-                  {currentUser.initials}
+                  {(localStorage.getItem('exofo_user_name') || 'AD').substring(0, 2).toUpperCase()}
                 </div>
                 <div className="text-left">
-                  <p className="text-xs font-bold text-slate-900 leading-none">{currentUser.name}</p>
-                  <p className="text-[10px] font-semibold text-blue-600 leading-tight mt-0.5">{currentUser.role}</p>
+                  <p className="text-xs font-bold text-slate-900 leading-none">{localStorage.getItem('exofo_user_name') || 'Administrator'}</p>
+                  <p className="text-[10px] font-semibold text-blue-600 leading-tight mt-0.5 capitalize">{localStorage.getItem('exofo_user_role') || 'Admin'}</p>
                 </div>
               </div>
             </div>

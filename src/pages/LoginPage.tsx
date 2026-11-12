@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import illustrationImg from '../../assets/illustration.jpg';
-import { employeeService } from '../services/employeeService';
 import { 
   User, 
   Lock, 
@@ -22,9 +21,9 @@ export const LoginPage: React.FC = () => {
   // Role Tab: 'employee' or 'admin'
   const [roleTab, setRoleTab] = useState<'employee' | 'admin'>('employee');
 
-  // Form State
-  const [loginId, setLoginId] = useState('EMP009');
-  const [password, setPassword] = useState('Welcome123!');
+  // Form State - default to seeded database accounts for development
+  const [loginId, setLoginId] = useState('EMP001');
+  const [password, setPassword] = useState('123456');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,15 +37,15 @@ export const LoginPage: React.FC = () => {
     setRoleTab(role);
     setError(null);
     if (role === 'employee') {
-      setLoginId('EMP009');
-      setPassword('Welcome123!');
+      setLoginId('EMP001');
+      setPassword('123456');
     } else {
       setLoginId('admin@exofo.internal');
-      setPassword('admin123');
+      setPassword('admin');
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!loginId.trim()) {
@@ -61,71 +60,54 @@ export const LoginPage: React.FC = () => {
     setError(null);
     setIsLoading(true);
 
-    // Simulate login authentication & resolve exact employee/admin role dynamically
-    setTimeout(async () => {
-      const trimmed = loginId.trim().toLowerCase();
-      const isExplicitAdmin =
-        trimmed === 'admin@exofo.internal' ||
-        trimmed === 'admin' ||
-        trimmed === 'miqdhadh@exofo.internal';
+    try {
+      // ── Call real backend ────────────────────────────────────────────────────
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ loginId: loginId.trim(), password, role: roleTab }),
+      });
 
-      let matchedEmployee = null;
-      try {
-        const allEmployees = await employeeService.getEmployees();
-        matchedEmployee =
-          allEmployees.find(
-            (emp) =>
-              emp.employeeId.toLowerCase() === trimmed ||
-              emp.id.toLowerCase() === trimmed ||
-              emp.email.toLowerCase() === trimmed ||
-              emp.name.toLowerCase() === trimmed
-          ) || null;
-      } catch {
-        // Fallback silently to direct identifier checks below
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.message || 'Invalid credentials. Please try again.');
+        setIsLoading(false);
+        return;
       }
 
-      const isEmployeeLogin =
-        Boolean(matchedEmployee) ||
-        trimmed.startsWith('emp') ||
-        (roleTab === 'employee' && !isExplicitAdmin);
-
-      if (isEmployeeLogin && matchedEmployee) {
-        const pwdValid = await employeeService.verifyEmployeeLoginPassword(
-          matchedEmployee.id,
-          password
-        );
-        if (!pwdValid) {
-          setIsLoading(false);
-          setError('Invalid password. Please enter your updated password.');
-          return;
-        }
-      }
-
+      // ── Persist session ──────────────────────────────────────────────────────
+      const { token, user } = data;
       localStorage.setItem('exofo_auth', 'true');
-      localStorage.setItem('exofo_user_email', matchedEmployee ? matchedEmployee.email : trimmed);
-      localStorage.setItem('exofo_user_role', isEmployeeLogin ? 'employee' : 'admin');
+      localStorage.setItem('exofo_token', token);
+      localStorage.setItem('exofo_user_email', user.email);
+      localStorage.setItem('exofo_user_role', user.role);
+      localStorage.setItem('exofo_user_name', user.name);
 
-      if (isEmployeeLogin) {
-        if (matchedEmployee) {
-          localStorage.setItem('exofo_employee_id', matchedEmployee.id);
-        } else {
-          localStorage.setItem('exofo_employee_id', 'emp-ahmed');
-        }
+      if (user.role === 'employee') {
+        localStorage.setItem('exofo_employee_id', user.id);
+        if (user.employeeId) localStorage.setItem('exofo_employee_code', user.employeeId);
       } else {
         localStorage.removeItem('exofo_employee_id');
+        localStorage.removeItem('exofo_employee_code');
       }
 
+      const isEmployee = user.role === 'employee';
+      const destination = isEmployee ? '/employee/dashboard' : '/';
+
       setIsLoading(false);
-      const destination = isEmployeeLogin ? '/employee/dashboard' : '/';
       setSuccessToast(
-        isEmployeeLogin
-          ? `Signed in as ${matchedEmployee ? matchedEmployee.name : 'Employee'}! Redirecting to Workspace...`
-          : 'Signed in as Administrator! Redirecting to Dashboard...'
+        isEmployee
+          ? `Signed in as ${user.name}! Redirecting to Workspace...`
+          : `Signed in as Administrator! Redirecting to Dashboard...`
       );
-      setTimeout(() => {
-        navigate(destination);
-      }, 600);
-    }, 450);
+
+      setTimeout(() => navigate(destination), 600);
+    } catch (err) {
+      // Network / server unreachable
+      setError('Could not reach the server. Please check your connection or try again later.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -303,9 +285,13 @@ export const LoginPage: React.FC = () => {
                   <label htmlFor="loginId" className="text-xs font-bold text-slate-700">
                     {roleTab === 'employee' ? 'Employee ID or Email' : 'Administrator Email'}
                   </label>
-                  {roleTab === 'employee' && (
+                  {roleTab === 'employee' ? (
                     <span className="text-[11px] font-semibold text-blue-600">
-                      e.g. EMP009 (Ahmed)
+                      Demo: EMP001 / 123456
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-semibold text-slate-500">
+                      Demo: admin@exofo.internal / admin
                     </span>
                   )}
                 </div>
@@ -320,7 +306,7 @@ export const LoginPage: React.FC = () => {
                     onChange={(e) => setLoginId(e.target.value)}
                     placeholder={
                       roleTab === 'employee'
-                        ? 'Enter your Employee ID (e.g. EMP009)'
+                        ? 'Enter your Employee ID (e.g. EMP001)'
                         : 'Enter admin email (admin@exofo.internal)'
                     }
                     required
