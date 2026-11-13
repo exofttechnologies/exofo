@@ -1,5 +1,6 @@
 import { Project, ProjectFeature, ProjectEmployee, ProjectCredential, ProjectInvoice, Employee } from '../types';
 import { employeeService } from './employeeService';
+import { getApiUrl } from '../config/api';
 
 export interface EmployeeProjectsSummary {
   total: number;
@@ -39,7 +40,7 @@ export const projectService = {
     }
 
     const qs = query.toString();
-    const url = `/api/employees/${encodeURIComponent(employee.employeeId || employee.id)}/projects${qs ? `?${qs}` : ''}`;
+    const url = getApiUrl(`/api/employees/${encodeURIComponent(employee.employeeId || employee.id)}/projects${qs ? `?${qs}` : ''}`);
     const res = await fetch(url);
 
     if (!res.ok) {
@@ -60,7 +61,7 @@ export const projectService = {
     if (filters?.priority && filters.priority !== 'All') query.append('priority', filters.priority);
 
     const qs = query.toString();
-    const res = await fetch(`/api/projects${qs ? `?${qs}` : ''}`);
+    const res = await fetch(getApiUrl(`/api/projects${qs ? `?${qs}` : ''}`));
     if (!res.ok) {
       throw new Error('Failed to fetch projects');
     }
@@ -72,7 +73,7 @@ export const projectService = {
    * Fetch a single project by ID or Code from MongoDB
    */
   async getProjectById(projectId: string): Promise<Project | null> {
-    const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`);
+    const res = await fetch(getApiUrl(`/api/projects/${encodeURIComponent(projectId)}`));
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('Failed to fetch project');
     const json = await res.json();
@@ -83,7 +84,7 @@ export const projectService = {
    * Create a new project in MongoDB
    */
   async createProject(projectData: Partial<Project>): Promise<Project> {
-    const res = await fetch('/api/projects', {
+    const res = await fetch(getApiUrl('/api/projects'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(projectData),
@@ -102,7 +103,7 @@ export const projectService = {
    * Update an existing project in MongoDB
    */
   async updateProject(projectId: string, updates: Partial<Project>): Promise<Project> {
-    const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+    const res = await fetch(getApiUrl(`/api/projects/${encodeURIComponent(projectId)}`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -121,7 +122,7 @@ export const projectService = {
    * Delete a project from MongoDB
    */
   async deleteProject(projectId: string): Promise<boolean> {
-    const res = await fetch(`/api/projects/${encodeURIComponent(projectId)}`, {
+    const res = await fetch(getApiUrl(`/api/projects/${encodeURIComponent(projectId)}`), {
       method: 'DELETE',
     });
     return res.ok;

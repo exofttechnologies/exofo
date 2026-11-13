@@ -7,11 +7,11 @@ export default defineConfig({
   base: './',
   server: {
     proxy: {
-      // Forward /api/* to the Express backend during development
+      // Forward /api/* to the production HTTPS backend (or local override)
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'https://api.exofo.exofttechnologies.com',
         changeOrigin: true,
-        secure: false,
+        secure: true,
       },
     },
   },

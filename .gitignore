@@ -23,8 +23,8 @@ Thumbs.db
 *.swo
 
 # Environment variables
-.env
-.env.local
-.env.production
-.env.development
+# .env
+# .env.local
+# .env.production
+# .env.development
 

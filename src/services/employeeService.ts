@@ -1,4 +1,5 @@
 import { Employee, Project, Task } from '../types';
+import { getApiUrl } from '../config/api';
 
 export interface EmployeeFilterParams {
   search?: string;
@@ -61,7 +62,7 @@ export const employeeService = {
     if (filters?.status && filters.status !== 'All') query.append('status', filters.status);
     if (filters?.department && filters.department !== 'All') query.append('department', filters.department);
 
-    const res = await fetch(`/api/employees?${query.toString()}`);
+    const res = await fetch(getApiUrl(`/api/employees?${query.toString()}`));
     if (!res.ok) {
       throw new Error('Failed to fetch employees');
     }
@@ -73,7 +74,7 @@ export const employeeService = {
    * Fetch a single employee by ID or Employee ID code from MongoDB
    */
   async getEmployeeById(idOrEmpId: string): Promise<Employee | null> {
-    const res = await fetch(`/api/employees/${encodeURIComponent(idOrEmpId)}`);
+    const res = await fetch(getApiUrl(`/api/employees/${encodeURIComponent(idOrEmpId)}`));
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('Failed to fetch employee');
     const json = await res.json();
@@ -90,7 +91,7 @@ export const employeeService = {
       ...data,
       password: data.temporaryPassword || '123456',
     };
-    const res = await fetch('/api/employees', {
+    const res = await fetch(getApiUrl('/api/employees'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -109,7 +110,7 @@ export const employeeService = {
    * Update existing employee in MongoDB
    */
   async updateEmployee(idOrEmpId: string, updates: Partial<Employee>): Promise<Employee> {
-    const res = await fetch(`/api/employees/${encodeURIComponent(idOrEmpId)}`, {
+    const res = await fetch(getApiUrl(`/api/employees/${encodeURIComponent(idOrEmpId)}`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -143,12 +144,12 @@ export const employeeService = {
     if (!employee) throw new Error('Employee not found');
 
     // Projects assigned to this employee
-    const projRes = await fetch(`/api/employees/${encodeURIComponent(idOrEmpId)}/projects`);
+    const projRes = await fetch(getApiUrl(`/api/employees/${encodeURIComponent(idOrEmpId)}/projects`));
     const projJson = await projRes.json().catch(() => ({ data: { projects: [] } }));
     const assignedProjects = projJson?.data?.projects || [];
 
     // Tasks assigned to this employee
-    const taskRes = await fetch(`/api/tasks?assignedEmployeeId=${encodeURIComponent(employee.employeeId || employee.id)}`);
+    const taskRes = await fetch(getApiUrl(`/api/tasks?assignedEmployeeId=${encodeURIComponent(employee.employeeId || employee.id)}`));
     const taskJson = await taskRes.json().catch(() => ({ data: [] }));
     const assignedTasks = taskJson.data || [];
 
@@ -168,7 +169,7 @@ export const employeeService = {
       target = localStorage.getItem('exofo_employee_code') || localStorage.getItem('exofo_employee_id') || localStorage.getItem('exofo_user_email') || 'EMP001';
     }
 
-    const res = await fetch(`/api/employees/${encodeURIComponent(target)}/dashboard`);
+    const res = await fetch(getApiUrl(`/api/employees/${encodeURIComponent(target)}/dashboard`));
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message || 'Failed to load employee dashboard');
@@ -196,7 +197,7 @@ export const employeeService = {
    * Fetch authenticated employee's full profile and live work summary counts from MongoDB
    */
   async getEmployeeProfile(idOrEmpIdOrEmail: string): Promise<EmployeeProfileData> {
-    const res = await fetch(`/api/employees/${encodeURIComponent(idOrEmpIdOrEmail)}/profile`);
+    const res = await fetch(getApiUrl(`/api/employees/${encodeURIComponent(idOrEmpIdOrEmail)}/profile`));
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message || 'Failed to fetch employee profile');
@@ -212,7 +213,7 @@ export const employeeService = {
     idOrEmpIdOrEmail: string,
     payload: EmployeeSelfProfileUpdatePayload
   ): Promise<Employee> {
-    const res = await fetch(`/api/employees/${encodeURIComponent(idOrEmpIdOrEmail)}/profile`, {
+    const res = await fetch(getApiUrl(`/api/employees/${encodeURIComponent(idOrEmpIdOrEmail)}/profile`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -239,7 +240,7 @@ export const employeeService = {
       throw new Error('New password and confirmation do not match.');
     }
 
-    const res = await fetch(`/api/employees/${encodeURIComponent(idOrEmpIdOrEmail)}/change-password`, {
+    const res = await fetch(getApiUrl(`/api/employees/${encodeURIComponent(idOrEmpIdOrEmail)}/change-password`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ currentPassword, newPassword }),
@@ -258,7 +259,7 @@ export const employeeService = {
    */
   async verifyEmployeeLoginPassword(idOrEmpId: string, plainPassword: string): Promise<boolean> {
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ loginId: idOrEmpId, password: plainPassword, role: 'employee' }),

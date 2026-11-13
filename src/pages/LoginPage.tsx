@@ -14,6 +14,7 @@ import {
   CheckCircle2, 
   AlertCircle 
 } from 'lucide-react';
+import { getApiUrl } from '../config/api';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -62,7 +63,7 @@ export const LoginPage: React.FC = () => {
 
     try {
       // ── Call real backend ────────────────────────────────────────────────────
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ loginId: loginId.trim(), password, role: roleTab }),

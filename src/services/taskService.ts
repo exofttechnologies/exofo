@@ -1,6 +1,7 @@
 import { Employee, Project, Task, TaskActivity, TaskAttachment, TaskPriority, TaskStatus } from '../types';
 import { employeeService } from './employeeService';
 import { projectService } from './projectService';
+import { getApiUrl } from '../config/api';
 
 export interface EmployeeTaskFilterParams {
   status?: string;
@@ -60,7 +61,7 @@ export const taskService = {
     if (proj) query.append('projectId', proj);
 
     const qs = query.toString();
-    const res = await fetch(`/api/tasks${qs ? `?${qs}` : ''}`);
+    const res = await fetch(getApiUrl(`/api/tasks${qs ? `?${qs}` : ''}`));
     if (!res.ok) {
       throw new Error('Failed to fetch tasks');
     }
@@ -72,7 +73,7 @@ export const taskService = {
    * Fetch single task by ID from MongoDB
    */
   async getTaskById(taskId: string): Promise<Task | null> {
-    const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`);
+    const res = await fetch(getApiUrl(`/api/tasks/${encodeURIComponent(taskId)}`));
     if (res.status === 404) return null;
     if (!res.ok) throw new Error('Failed to fetch task');
     const json = await res.json();
@@ -95,7 +96,7 @@ export const taskService = {
    * Create task in MongoDB
    */
   async createTask(taskData: Partial<Task>): Promise<Task> {
-    const res = await fetch('/api/tasks', {
+    const res = await fetch(getApiUrl('/api/tasks'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(taskData),
@@ -114,7 +115,7 @@ export const taskService = {
    * Update task in MongoDB
    */
   async updateTask(taskId: string, updates: Partial<Task>): Promise<Task> {
-    const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+    const res = await fetch(getApiUrl(`/api/tasks/${encodeURIComponent(taskId)}`), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -140,7 +141,7 @@ export const taskService = {
    * Delete task in MongoDB
    */
   async deleteTask(taskId: string): Promise<boolean> {
-    const res = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`, {
+    const res = await fetch(getApiUrl(`/api/tasks/${encodeURIComponent(taskId)}`), {
       method: 'DELETE',
     });
     return res.ok;

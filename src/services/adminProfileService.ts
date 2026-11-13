@@ -1,4 +1,5 @@
 import { AdminProfile } from '../types';
+import { getApiUrl } from '../config/api';
 
 export interface ChangePasswordPayload {
   currentPassword: string;
@@ -11,7 +12,7 @@ export const adminProfileService = {
    * Get logged-in admin profile from MongoDB API
    */
   async getProfile(): Promise<AdminProfile> {
-    const res = await fetch('/api/profile');
+    const res = await fetch(getApiUrl('/api/profile'));
     if (!res.ok) {
       throw new Error('Failed to fetch admin profile');
     }
@@ -30,7 +31,7 @@ export const adminProfileService = {
       throw new Error('Please enter a valid email address.');
     }
 
-    const res = await fetch('/api/profile', {
+    const res = await fetch(getApiUrl('/api/profile'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updates),
@@ -61,7 +62,7 @@ export const adminProfileService = {
       throw new Error('New password and confirmation do not match.');
     }
 
-    const res = await fetch('/api/profile/change-password', {
+    const res = await fetch(getApiUrl('/api/profile/change-password'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ currentPassword, newPassword }),
