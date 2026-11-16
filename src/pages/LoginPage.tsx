@@ -235,7 +235,12 @@ export const LoginPage: React.FC = () => {
             <div className={`w-14 h-1.5 rounded-full bg-[#E2E6EF] mx-auto mb-6 ${previewMode === 'phone' ? 'block' : 'lg:hidden'}`} />
 
             {/* Header: Brand & Subtitle */}
-            <div className="text-center mb-5">
+            <div className="text-center mb-5 flex flex-col items-center">
+              <img
+                src="/android-chrome-192x192.png"
+                alt="Exofo Logo"
+                className="w-14 h-14 rounded-2xl object-cover shadow-md mb-3"
+              />
               <h1 className="text-3xl sm:text-[32px] font-extrabold text-[#0C102A] tracking-tight">
                 Exofo
               </h1>

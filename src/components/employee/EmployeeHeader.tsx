@@ -33,9 +33,11 @@ export const EmployeeHeader: React.FC<EmployeeHeaderProps> = ({
         onClick={() => navigate('/employee/dashboard')}
         className="flex items-center gap-2.5 cursor-pointer group"
       >
-        <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-slate-900 via-[#162569] to-[#1261E8] flex items-center justify-center shadow-sm shadow-blue-500/20 group-hover:scale-105 transition-transform">
-          <span className="text-white font-black text-sm tracking-tighter">EX</span>
-        </div>
+        <img 
+          src="/android-chrome-192x192.png" 
+          alt="Exofo Logo" 
+          className="w-9 h-9 rounded-2xl object-cover shadow-sm shadow-blue-500/20 group-hover:scale-105 transition-transform" 
+        />
         <div className="flex flex-col">
           <span className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight leading-none">
             EXOFO

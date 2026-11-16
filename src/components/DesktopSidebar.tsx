@@ -50,11 +50,13 @@ export const DesktopSidebar: React.FC<DesktopSidebarProps> = ({
           onClick={() => navigate('/')}
           role="button"
           tabIndex={0}
-          className="flex items-center gap-3 mb-8 cursor-pointer"
+          className="flex items-center gap-3 mb-8 cursor-pointer group"
         >
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#1261E8] to-[#0645B5] flex items-center justify-center text-white font-black text-xl shadow-md">
-            E
-          </div>
+          <img 
+            src="/android-chrome-192x192.png" 
+            alt="Exofo Logo" 
+            className="w-10 h-10 rounded-2xl object-cover shadow-md group-hover:scale-105 transition-transform" 
+          />
           <div>
             <h1 className="text-xl font-extrabold text-slate-900 leading-tight tracking-tight">
               Exofo

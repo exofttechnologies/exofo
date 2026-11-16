@@ -22,13 +22,20 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   return (
     <header className="flex items-center justify-between pt-1 pb-4">
       {/* Brand Identity */}
-      <div>
-        <h1 className="text-[26px] font-extrabold tracking-tight text-slate-900 leading-tight">
-          Exofo
-        </h1>
-        <p className="text-[13px] font-medium text-slate-500 tracking-normal mt-0.5">
-          Company Management
-        </p>
+      <div className="flex items-center gap-3">
+        <img
+          src="/android-chrome-192x192.png"
+          alt="Exofo Logo"
+          className="w-10 h-10 rounded-2xl object-cover shadow-sm"
+        />
+        <div>
+          <h1 className="text-[26px] font-extrabold tracking-tight text-slate-900 leading-tight">
+            Exofo
+          </h1>
+          <p className="text-[13px] font-medium text-slate-500 tracking-normal mt-0.5">
+            Company Management
+          </p>
+        </div>
       </div>
 
       {/* Right Actions: Notifications & Avatar */}
