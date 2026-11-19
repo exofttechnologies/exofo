@@ -13,63 +13,51 @@ export const LayeredFolderNavigation: React.FC<LayeredFolderNavigationProps> = (
   const navigate = useNavigate();
 
   return (
-    <div className="relative pt-16 pb-3 select-none">
+    <div className="relative pt-10 pb-3 select-none">
       {/* ------------------------------------------------------------------
-          Layer 3: Topmost / Furthest Back Folder - "Documents"
+          Folder Tabs Bar - Positioned neatly along the top of the blue card
           ------------------------------------------------------------------ */}
-      <div 
-        onClick={() => navigate('/documents')}
-        role="button"
-        tabIndex={0}
-        aria-label="View Documents"
-        className="absolute top-1 right-4 z-10 flex items-center gap-1.5 px-4 py-2 rounded-t-[14px] glass-folder-tab cursor-pointer transition-all duration-200 hover:-translate-y-1 active:translate-y-0"
-      >
-        <FileText className="w-3.5 h-3.5 text-slate-700 stroke-[2.2]" />
-        <span className="text-[12.5px] font-semibold text-slate-800">
-          Documents
-        </span>
-      </div>
-      {/* Background folder body for Layer 3 */}
-      <div 
-        className="absolute top-3.5 inset-x-2 h-24 rounded-t-[24px] bg-white/40 backdrop-blur-sm border border-white/60 pointer-events-none -z-10"
-        style={{ transform: 'scale(0.96)' }} 
-      />
+      <div className="flex items-center justify-between px-2 sm:px-3 mb-[-1px] relative z-20">
+        <div className="flex items-center gap-1 sm:gap-2">
+          {/* Tab 1: Team */}
+          <button 
+            type="button"
+            onClick={() => navigate('/team')}
+            aria-label="View Team"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-t-[14px] glass-folder-tab cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <Users className="w-3.5 h-3.5 text-slate-700 stroke-[2.2]" />
+            <span className="text-[12px] sm:text-[12.5px] font-bold text-slate-800">
+              Team
+            </span>
+          </button>
 
-      {/* ------------------------------------------------------------------
-          Layer 2: Middle Folder - "Tasks"
-          ------------------------------------------------------------------ */}
-      <div 
-        onClick={() => navigate('/tasks')}
-        role="button"
-        tabIndex={0}
-        aria-label="View Tasks"
-        className="absolute top-1 left-[32%] z-10 flex items-center gap-1.5 px-4 py-2 rounded-t-[14px] glass-folder-tab cursor-pointer transition-all duration-200 hover:-translate-y-1 active:translate-y-0"
-      >
-        <CheckSquare className="w-3.5 h-3.5 text-slate-700 stroke-[2.2]" />
-        <span className="text-[12.5px] font-semibold text-slate-800">
-          Tasks
-        </span>
-      </div>
-      {/* Background folder body for Layer 2 */}
-      <div 
-        className="absolute top-5 inset-x-1 h-20 rounded-t-[26px] bg-white/50 backdrop-blur-md border border-white/70 pointer-events-none z-10"
-        style={{ transform: 'scale(0.98)' }} 
-      />
+          {/* Tab 2: Tasks */}
+          <button 
+            type="button"
+            onClick={() => navigate('/tasks')}
+            aria-label="View Tasks"
+            className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-t-[14px] glass-folder-tab cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
+          >
+            <CheckSquare className="w-3.5 h-3.5 text-slate-700 stroke-[2.2]" />
+            <span className="text-[12px] sm:text-[12.5px] font-bold text-slate-800">
+              Tasks
+            </span>
+          </button>
+        </div>
 
-      {/* ------------------------------------------------------------------
-          Layer 1: Front Folder Tab - "Team"
-          ------------------------------------------------------------------ */}
-      <div 
-        onClick={() => navigate('/team')}
-        role="button"
-        tabIndex={0}
-        aria-label="View Team"
-        className="absolute top-1 left-4 z-10 flex items-center gap-1.5 px-4 py-2 rounded-t-[14px] glass-folder-tab cursor-pointer transition-all duration-200 hover:-translate-y-1 active:translate-y-0"
-      >
-        <Users className="w-3.5 h-3.5 text-slate-700 stroke-[2.2]" />
-        <span className="text-[12.5px] font-semibold text-slate-800">
-          Team
-        </span>
+        {/* Tab 3: Documents */}
+        <button 
+          type="button"
+          onClick={() => navigate('/documents')}
+          aria-label="View Documents"
+          className="flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-t-[14px] glass-folder-tab cursor-pointer transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0"
+        >
+          <FileText className="w-3.5 h-3.5 text-slate-700 stroke-[2.2]" />
+          <span className="text-[12px] sm:text-[12.5px] font-bold text-slate-800">
+            Documents
+          </span>
+        </button>
       </div>
 
       {/* ------------------------------------------------------------------
