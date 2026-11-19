@@ -16,8 +16,14 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
-  // For /login route and /employee module routes, render their dedicated layouts
-  if (location.pathname === '/login' || location.pathname.startsWith('/employee')) {
+  // For /login, /employee/* routes, or any employee role: render their dedicated layouts
+  // (Prevents the admin shell from flashing for one frame before RoleBasedHome redirects)
+  const role = localStorage.getItem('exofo_user_role') || '';
+  if (
+    location.pathname === '/login' ||
+    location.pathname.startsWith('/employee') ||
+    role === 'employee'
+  ) {
     return <>{children}</>;
   }
 
