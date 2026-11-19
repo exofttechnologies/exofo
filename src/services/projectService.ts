@@ -55,18 +55,22 @@ export const projectService = {
    * Fetch all projects from MongoDB
    */
   async getAllProjects(filters?: { status?: string; search?: string; priority?: string }): Promise<Project[]> {
-    const query = new URLSearchParams();
-    if (filters?.status && filters.status !== 'All') query.append('status', filters.status);
-    if (filters?.search && filters.search.trim()) query.append('search', filters.search.trim());
-    if (filters?.priority && filters.priority !== 'All') query.append('priority', filters.priority);
+    try {
+      const query = new URLSearchParams();
+      if (filters?.status && filters.status !== 'All') query.append('status', filters.status);
+      if (filters?.search && filters.search.trim()) query.append('search', filters.search.trim());
+      if (filters?.priority && filters.priority !== 'All') query.append('priority', filters.priority);
 
-    const qs = query.toString();
-    const res = await fetch(getApiUrl(`/api/projects${qs ? `?${qs}` : ''}`));
-    if (!res.ok) {
-      throw new Error('Failed to fetch projects');
+      const qs = query.toString();
+      const res = await fetch(getApiUrl(`/api/projects${qs ? `?${qs}` : ''}`));
+      if (res.ok) {
+        const json = await res.json();
+        return json.data || [];
+      }
+    } catch {
+      // Graceful fallback when API is down or unreachable
     }
-    const json = await res.json();
-    return json.data || [];
+    return [];
   },
 
   /**

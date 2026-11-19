@@ -56,18 +56,22 @@ export const employeeService = {
    * Fetch all employees from MongoDB
    */
   async getEmployees(filters?: EmployeeFilterParams): Promise<Employee[]> {
-    const query = new URLSearchParams();
-    if (filters?.search) query.append('search', filters.search);
-    if (filters?.designation && filters.designation !== 'All') query.append('designation', filters.designation);
-    if (filters?.status && filters.status !== 'All') query.append('status', filters.status);
-    if (filters?.department && filters.department !== 'All') query.append('department', filters.department);
+    try {
+      const query = new URLSearchParams();
+      if (filters?.search) query.append('search', filters.search);
+      if (filters?.designation && filters.designation !== 'All') query.append('designation', filters.designation);
+      if (filters?.status && filters.status !== 'All') query.append('status', filters.status);
+      if (filters?.department && filters.department !== 'All') query.append('department', filters.department);
 
-    const res = await fetch(getApiUrl(`/api/employees?${query.toString()}`));
-    if (!res.ok) {
-      throw new Error('Failed to fetch employees');
+      const res = await fetch(getApiUrl(`/api/employees?${query.toString()}`));
+      if (res.ok) {
+        const json = await res.json();
+        return json.data || [];
+      }
+    } catch {
+      // Graceful fallback when API is down or unreachable
     }
-    const json = await res.json();
-    return json.data || [];
+    return [];
   },
 
   /**
