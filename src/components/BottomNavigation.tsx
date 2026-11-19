@@ -70,7 +70,7 @@ export const BottomNavigation: React.FC = () => {
               className={`relative flex items-center justify-center transition-all duration-300 rounded-full ${
                 isActive
                   ? 'bg-white text-slate-900 px-4 sm:px-5 py-2 sm:py-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] border border-slate-100/90 gap-2 font-bold text-xs sm:text-sm flex-shrink-0'
-                  : 'text-slate-400 hover:text-slate-700 px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-white/50 active:scale-95 flex-1 flex justify-center'
+                  : 'text-slate-400 hover:text-slate-700 px-3 sm:px-4 py-2 sm:py-2.5 hover:bg-white/50 active:scale-95 flex-1 flex items-center justify-center'
               }`}
             >
               <Icon 

@@ -41,21 +41,19 @@ export const EmployeeBottomNavigation: React.FC = () => {
               className={`relative flex items-center justify-center transition-all duration-300 rounded-full ${
                 isActive
                   ? 'bg-slate-900 text-white px-4 sm:px-5 py-2 sm:py-2.5 shadow-md border border-slate-800 gap-2 font-bold text-xs sm:text-sm flex-shrink-0'
-                  : 'text-slate-500 hover:text-slate-900 px-3 sm:px-4 py-2 hover:bg-white/60 active:scale-95 flex-1 flex flex-col items-center justify-center gap-0.5'
+                  : 'text-slate-500 hover:text-slate-900 px-3 py-2 hover:bg-white/60 active:scale-95 flex-1 flex items-center justify-center'
               }`}
             >
               <Icon
-                className={`w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform duration-200 ${
+                className={`w-5 h-5 transition-transform duration-200 ${
                   isActive ? 'stroke-[2.2] text-white' : 'stroke-[1.8] text-slate-500'
                 }`}
               />
-              <span
-                className={`text-[11px] sm:text-xs tracking-tight whitespace-nowrap ${
-                  isActive ? 'font-bold text-white' : 'font-semibold text-slate-500'
-                }`}
-              >
-                {item.label}
-              </span>
+              {isActive && (
+                <span className="text-[11px] sm:text-xs tracking-tight whitespace-nowrap font-bold text-white">
+                  {item.label}
+                </span>
+              )}
             </button>
           );
         })}

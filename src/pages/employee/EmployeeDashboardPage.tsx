@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  AlertCircle, 
-  RefreshCw, 
-  UserCheck 
-} from 'lucide-react';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { employeeService, EmployeeDashboardData } from '../../services/employeeService';
 import { EmployeeHeader } from '../../components/employee/EmployeeHeader';
 import { EmployeeSummaryCards } from '../../components/employee/EmployeeSummaryCards';
@@ -13,7 +9,6 @@ import { EmployeeTodayTasksCard } from '../../components/employee/EmployeeTodayT
 import { EmployeeQuickActionsCard } from '../../components/employee/EmployeeQuickActionsCard';
 import { EmployeeBottomNavigation } from '../../components/employee/EmployeeBottomNavigation';
 import { NotificationsModal } from '../../components/NotificationsModal';
-import { Employee } from '../../types';
 
 export const EmployeeDashboardPage: React.FC = () => {
   const navigate = useNavigate();
@@ -25,27 +20,24 @@ export const EmployeeDashboardPage: React.FC = () => {
   // Modals
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
-  // Available employees for quick switching / testing
-  const [availableEmployees, setAvailableEmployees] = useState<Employee[]>([]);
-  const [selectedEmpId, setSelectedEmpId] = useState<string>(() => {
-    return localStorage.getItem('exofo_employee_id') || 'emp-ahmed';
-  });
-
-  const loadData = async (empIdToLoad?: string) => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Determine active employee id or email from localStorage
-      const storedEmail = localStorage.getItem('exofo_user_email');
-      const targetId = empIdToLoad || selectedEmpId || storedEmail || 'emp-ahmed';
+      // Always load the authenticated employee's own data from localStorage
+      const target =
+        localStorage.getItem('exofo_employee_code') ||
+        localStorage.getItem('exofo_employee_id') ||
+        localStorage.getItem('exofo_user_email');
 
-      const data = await employeeService.getEmployeeDashboard(targetId);
+      if (!target) {
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      const data = await employeeService.getEmployeeDashboard(target);
       setDashboardData(data);
-
-      // Load active employees list for switcher (ensure active user like Ahmed is always visible)
-      const emps = await employeeService.getEmployees({ status: 'Active' });
-      setAvailableEmployees(emps);
     } catch (err: any) {
       setError(err.message || 'Failed to load employee dashboard.');
     } finally {
@@ -56,12 +48,6 @@ export const EmployeeDashboardPage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
-
-  const handleSwitchEmployee = (empId: string) => {
-    setSelectedEmpId(empId);
-    localStorage.setItem('exofo_employee_id', empId);
-    loadData(empId);
-  };
 
   return (
     <div 
@@ -92,37 +78,6 @@ export const EmployeeDashboardPage: React.FC = () => {
           onOpenNotifications={() => setIsNotificationsOpen(true)}
           onOpenProfile={() => navigate('/employee/profile')}
         />
-
-        {/* Optional Employee Switcher Pill Bar for Testing */}
-        {availableEmployees.length > 0 && (
-          <div className="mb-6 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 flex-shrink-0">
-              <UserCheck className="w-3.5 h-3.5 text-blue-600" />
-              <span>Workspace Account:</span>
-            </span>
-            {availableEmployees.map((emp) => {
-              const isSelected =
-                dashboardData?.employee.id === emp.id ||
-                dashboardData?.employee.employeeId === emp.employeeId;
-
-              return (
-                <button
-                  key={emp.id}
-                  onClick={() => handleSwitchEmployee(emp.id)}
-                  className={`text-xs font-bold px-3 py-1 rounded-full transition-all flex-shrink-0 flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-white/70 hover:bg-white text-slate-600 border border-slate-200/70'
-                  }`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                  <span>{emp.name}</span>
-                  <span className="text-[10px] font-medium opacity-60">({emp.department})</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
 
         {/* Error State */}
         {error && (

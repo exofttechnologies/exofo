@@ -57,14 +57,49 @@ import { EmployeeProfileEditPage } from './pages/employee/EmployeeProfileEditPag
 import { EmployeeChangePasswordPage } from './pages/employee/EmployeeChangePasswordPage';
 
 /**
- * ProtectedRoute Component
- * Requires valid exofo_auth flag in localStorage to access management dashboard.
- * If not authenticated, seamlessly routes to the Exofo login screen.
+ * ProtectedRoute – requires valid exofo_auth.
+ * Also enforces role separation:
+ *   - admin/superadmin must NOT access /employee/* routes → redirected to /
+ *   - employee must NOT access admin routes (/) → redirected to /employee/dashboard
  */
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode;
+  requiredRole?: 'admin' | 'employee';
+}> = ({ children, requiredRole }) => {
   const isAuth = localStorage.getItem('exofo_auth') === 'true';
   if (!isAuth) {
     return <Navigate to="/login" replace />;
+  }
+
+  const role = localStorage.getItem('exofo_user_role') || '';
+
+  if (requiredRole === 'employee') {
+    // Only employees may access these routes
+    if (role !== 'employee') {
+      return <Navigate to="/" replace />;
+    }
+  } else if (requiredRole === 'admin') {
+    // Only admins/superadmins may access these routes
+    if (role !== 'admin' && role !== 'superadmin') {
+      return <Navigate to="/employee/dashboard" replace />;
+    }
+  }
+
+  return <>{children}</>;
+};
+
+/**
+ * RoleBasedHome – the / route redirects employees to their workspace.
+ * Admins/superadmins see the main dashboard.
+ */
+const RoleBasedHome: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const isAuth = localStorage.getItem('exofo_auth') === 'true';
+  if (!isAuth) {
+    return <Navigate to="/login" replace />;
+  }
+  const role = localStorage.getItem('exofo_user_role') || '';
+  if (role === 'employee') {
+    return <Navigate to="/employee/dashboard" replace />;
   }
   return <>{children}</>;
 };
@@ -77,13 +112,13 @@ export const App: React.FC = () => {
           {/* Auth Route */}
           <Route path="/login" element={<LoginPage />} />
 
-          {/* 1. Home Dashboard Page (Protected) */}
+          {/* 1. Home Dashboard Page — role-aware: employees redirect to /employee/dashboard */}
           <Route 
             path="/" 
             element={
-              <ProtectedRoute>
+              <RoleBasedHome>
                 <DashboardPage />
-              </ProtectedRoute>
+              </RoleBasedHome>
             } 
           />
 
@@ -91,7 +126,7 @@ export const App: React.FC = () => {
           <Route 
             path="/projects" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole="admin">
                 <ProjectsPage />
               </ProtectedRoute>
             } 
@@ -101,7 +136,7 @@ export const App: React.FC = () => {
           <Route 
             path="/projects/create" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole="admin">
                 <CreateProjectPage />
               </ProtectedRoute>
             } 
@@ -111,72 +146,72 @@ export const App: React.FC = () => {
           <Route 
             path="/projects/:projectId" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole="admin">
                 <ProjectSectionsPage />
               </ProtectedRoute>
             } 
           />
 
           {/* 4. Individual Section Dedicated Pages */}
-          <Route path="/projects/:projectId/details" element={<ProtectedRoute><ProjectDetailsSectionPage /></ProtectedRoute>} />
-          <Route path="/projects/:projectId/features" element={<ProtectedRoute><ProjectFeaturesSectionPage /></ProtectedRoute>} />
-          <Route path="/projects/:projectId/features/create" element={<ProtectedRoute><AddFeaturePage /></ProtectedRoute>} />
-          <Route path="/projects/:projectId/features/:featureId" element={<ProtectedRoute><ProjectFeatureDetailsSectionPage /></ProtectedRoute>} />
-          <Route path="/projects/:projectId/employees" element={<ProtectedRoute><ProjectEmployeesSectionPage /></ProtectedRoute>} />
-          <Route path="/projects/:projectId/assign-employees" element={<ProtectedRoute><ProjectAssignEmployeesSectionPage /></ProtectedRoute>} />
-          <Route path="/projects/:projectId/phases" element={<ProtectedRoute><ProjectPhasesSectionPage /></ProtectedRoute>} />
-          <Route path="/projects/:projectId/phases/create" element={<ProtectedRoute><CreatePhasePage /></ProtectedRoute>} />
-          <Route path="/projects/:projectId/phases/:phaseId" element={<ProtectedRoute><ProjectPhaseDetailsSectionPage /></ProtectedRoute>} />
-          <Route path="/projects/:projectId/documents" element={<ProtectedRoute><ProjectDocumentsSectionPage /></ProtectedRoute>} />
-          <Route path="/projects/:projectId/credentials" element={<ProtectedRoute><ProjectCredentialsSectionPage /></ProtectedRoute>} />
-          <Route path="/projects/:projectId/invoices" element={<ProtectedRoute><ProjectInvoicesSectionPage /></ProtectedRoute>} />
-          <Route path="/projects/:projectId/milestones" element={<ProtectedRoute><ProjectMilestonesSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/details" element={<ProtectedRoute requiredRole="admin"><ProjectDetailsSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/features" element={<ProtectedRoute requiredRole="admin"><ProjectFeaturesSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/features/create" element={<ProtectedRoute requiredRole="admin"><AddFeaturePage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/features/:featureId" element={<ProtectedRoute requiredRole="admin"><ProjectFeatureDetailsSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/employees" element={<ProtectedRoute requiredRole="admin"><ProjectEmployeesSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/assign-employees" element={<ProtectedRoute requiredRole="admin"><ProjectAssignEmployeesSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/phases" element={<ProtectedRoute requiredRole="admin"><ProjectPhasesSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/phases/create" element={<ProtectedRoute requiredRole="admin"><CreatePhasePage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/phases/:phaseId" element={<ProtectedRoute requiredRole="admin"><ProjectPhaseDetailsSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/documents" element={<ProtectedRoute requiredRole="admin"><ProjectDocumentsSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/credentials" element={<ProtectedRoute requiredRole="admin"><ProjectCredentialsSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/invoices" element={<ProtectedRoute requiredRole="admin"><ProjectInvoicesSectionPage /></ProtectedRoute>} />
+          <Route path="/projects/:projectId/milestones" element={<ProtectedRoute requiredRole="admin"><ProjectMilestonesSectionPage /></ProtectedRoute>} />
 
           {/* 5. Task Management Pages */}
-          <Route path="/tasks" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
-          <Route path="/tasks/create" element={<ProtectedRoute><CreateTaskPage /></ProtectedRoute>} />
-          <Route path="/tasks/:taskId" element={<ProtectedRoute><TaskDetailPage /></ProtectedRoute>} />
-          <Route path="/tasks/:taskId/edit" element={<ProtectedRoute><EditTaskPage /></ProtectedRoute>} />
+          <Route path="/tasks" element={<ProtectedRoute requiredRole="admin"><TasksPage /></ProtectedRoute>} />
+          <Route path="/tasks/create" element={<ProtectedRoute requiredRole="admin"><CreateTaskPage /></ProtectedRoute>} />
+          <Route path="/tasks/:taskId" element={<ProtectedRoute requiredRole="admin"><TaskDetailPage /></ProtectedRoute>} />
+          <Route path="/tasks/:taskId/edit" element={<ProtectedRoute requiredRole="admin"><EditTaskPage /></ProtectedRoute>} />
 
           {/* 6. Employee Management Pages */}
-          <Route path="/employees" element={<ProtectedRoute><EmployeeListingPage /></ProtectedRoute>} />
-          <Route path="/employees/create" element={<ProtectedRoute><AddEmployeePage /></ProtectedRoute>} />
-          <Route path="/employees/:employeeId" element={<ProtectedRoute><EmployeeDetailPage /></ProtectedRoute>} />
-          <Route path="/employees/:employeeId/edit" element={<ProtectedRoute><EditEmployeePage /></ProtectedRoute>} />
-          <Route path="/employees/:employeeId/assignments" element={<ProtectedRoute><EmployeeAssignmentsPage /></ProtectedRoute>} />
+          <Route path="/employees" element={<ProtectedRoute requiredRole="admin"><EmployeeListingPage /></ProtectedRoute>} />
+          <Route path="/employees/create" element={<ProtectedRoute requiredRole="admin"><AddEmployeePage /></ProtectedRoute>} />
+          <Route path="/employees/:employeeId" element={<ProtectedRoute requiredRole="admin"><EmployeeDetailPage /></ProtectedRoute>} />
+          <Route path="/employees/:employeeId/edit" element={<ProtectedRoute requiredRole="admin"><EditEmployeePage /></ProtectedRoute>} />
+          <Route path="/employees/:employeeId/assignments" element={<ProtectedRoute requiredRole="admin"><EmployeeAssignmentsPage /></ProtectedRoute>} />
 
           {/* 7. Project History Pages */}
-          <Route path="/project-history" element={<ProtectedRoute><ProjectHistoryPage /></ProtectedRoute>} />
-          <Route path="/project-history/:projectId" element={<ProtectedRoute><HistoricalProjectDetailPage /></ProtectedRoute>} />
+          <Route path="/project-history" element={<ProtectedRoute requiredRole="admin"><ProjectHistoryPage /></ProtectedRoute>} />
+          <Route path="/project-history/:projectId" element={<ProtectedRoute requiredRole="admin"><HistoricalProjectDetailPage /></ProtectedRoute>} />
 
           {/* 8. Admin Profile Pages */}
-          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-          <Route path="/profile/edit" element={<ProtectedRoute><EditProfilePage /></ProtectedRoute>} />
-          <Route path="/profile/change-password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute requiredRole="admin"><ProfilePage /></ProtectedRoute>} />
+          <Route path="/profile/edit" element={<ProtectedRoute requiredRole="admin"><EditProfilePage /></ProtectedRoute>} />
+          <Route path="/profile/change-password" element={<ProtectedRoute requiredRole="admin"><ChangePasswordPage /></ProtectedRoute>} />
 
-          {/* 9. Employee Module Home Dashboard */}
+          {/* 9. Employee Module — employees only */}
           <Route path="/employee" element={<Navigate to="/employee/dashboard" replace />} />
           <Route 
             path="/employee/dashboard" 
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole="employee">
                 <EmployeeDashboardPage />
               </ProtectedRoute>
             } 
           />
-          <Route path="/employee/projects" element={<ProtectedRoute><EmployeeProjectsPage /></ProtectedRoute>} />
-          <Route path="/employee/projects/:projectId" element={<ProtectedRoute><EmployeeProjectDetailsRoutePage /></ProtectedRoute>} />
-          <Route path="/employee/projects/:projectId/details" element={<ProtectedRoute><EmployeeProjectDetailsEditPage /></ProtectedRoute>} />
-          <Route path="/employee/tasks" element={<ProtectedRoute><EmployeeTasksPage /></ProtectedRoute>} />
-          <Route path="/employee/tasks/:taskId" element={<ProtectedRoute><EmployeeTaskDetailPage /></ProtectedRoute>} />
-          <Route path="/employee/tasks/:taskId/update" element={<ProtectedRoute><EmployeeTaskUpdatePage /></ProtectedRoute>} />
-          <Route path="/employee/profile" element={<ProtectedRoute><EmployeeProfilePage /></ProtectedRoute>} />
-          <Route path="/employee/profile/edit" element={<ProtectedRoute><EmployeeProfileEditPage /></ProtectedRoute>} />
-          <Route path="/employee/profile/change-password" element={<ProtectedRoute><EmployeeChangePasswordPage /></ProtectedRoute>} />
+          <Route path="/employee/projects" element={<ProtectedRoute requiredRole="employee"><EmployeeProjectsPage /></ProtectedRoute>} />
+          <Route path="/employee/projects/:projectId" element={<ProtectedRoute requiredRole="employee"><EmployeeProjectDetailsRoutePage /></ProtectedRoute>} />
+          <Route path="/employee/projects/:projectId/details" element={<ProtectedRoute requiredRole="employee"><EmployeeProjectDetailsEditPage /></ProtectedRoute>} />
+          <Route path="/employee/tasks" element={<ProtectedRoute requiredRole="employee"><EmployeeTasksPage /></ProtectedRoute>} />
+          <Route path="/employee/tasks/:taskId" element={<ProtectedRoute requiredRole="employee"><EmployeeTaskDetailPage /></ProtectedRoute>} />
+          <Route path="/employee/tasks/:taskId/update" element={<ProtectedRoute requiredRole="employee"><EmployeeTaskUpdatePage /></ProtectedRoute>} />
+          <Route path="/employee/profile" element={<ProtectedRoute requiredRole="employee"><EmployeeProfilePage /></ProtectedRoute>} />
+          <Route path="/employee/profile/edit" element={<ProtectedRoute requiredRole="employee"><EmployeeProfileEditPage /></ProtectedRoute>} />
+          <Route path="/employee/profile/change-password" element={<ProtectedRoute requiredRole="employee"><EmployeeChangePasswordPage /></ProtectedRoute>} />
 
-          {/* Fallback routes */}
-          <Route path="/team" element={<ProtectedRoute><EmployeeListingPage /></ProtectedRoute>} />
-          <Route path="/documents" element={<ProtectedRoute><ProjectHistoryPage /></ProtectedRoute>} />
+          {/* Fallback routes — admin only */}
+          <Route path="/team" element={<ProtectedRoute requiredRole="admin"><EmployeeListingPage /></ProtectedRoute>} />
+          <Route path="/documents" element={<ProtectedRoute requiredRole="admin"><ProjectHistoryPage /></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
